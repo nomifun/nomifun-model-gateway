@@ -11,6 +11,7 @@ import { Details, ErrorBox, RecordTable, Secret } from './components';
 import { useFeedback } from './feedback';
 import { ConfigurationChecklist } from './visuals/configuration-checklist';
 import { Filters } from './visuals/filters';
+import { CatalogEditorModal, ProviderOnboarding, SavedDiscoveryModal } from './CatalogWorkflow';
 const resources: Record<string, { path: string; columns: string[]; fields?: Field[]; hint?: string }> = {
   channels: { path: 'channels', columns: ['id', 'name', 'kind', 'base_url', 'priority', 'weight', 'enabled'], fields: channelFields },
   models: { path: 'models', columns: ['id', 'display_name', 'vendor', 'tasks', 'status', 'enabled', 'subscription_only'], fields: modelFields, hint: 'modelJSONHint' },
@@ -39,6 +40,9 @@ export function AdminPages({ page, onConfigChanged }: { page: string; onConfigCh
   const [actionBusy, setActionBusy] = useState('');
   const [editor, setEditor] = useState<{ title: string; fields: Field[]; value: Row; hint?: string; save: (value: Row) => Promise<void> }>();
   const [detail, setDetail] = useState<Row>(); const [secret, setSecret] = useState('');
+  const [catalogEditor, setCatalogEditor] = useState<{ kind: 'channel' | 'model'; value: Row; editing: boolean }>();
+  const [onboardingCatalog, setOnboardingCatalog] = useState<Row[]>();
+  const [discoveryEditor, setDiscoveryEditor] = useState<{ channel: Row; catalog: Row[] }>();
   const definition = resources[page]; const path = '/admin/' + (definition?.path ?? page);
   const load = useCallback(async () => { setBusy(true); setError(''); setData({}); try { setData(await request(path)); } catch (error) { setError(error instanceof Error ? error.message : 'failed'); } finally { setBusy(false); } }, [path]);
   useEffect(() => { void load(); setFilter(''); setStatusFilters({}); }, [load]);
@@ -56,7 +60,11 @@ export function AdminPages({ page, onConfigChanged }: { page: string; onConfigCh
     const value = { ...(row ?? {}) };
     if (page === 'channels') { if (!value.model_ids && value.models_json) value.model_ids = exactJSON.parse(String(value.models_json)); if (!value.endpoints && value.endpoints_json) value.endpoints = exactJSON.parse(String(value.endpoints_json)); }
     if (page === 'adminplans' && !value.model_ids && value.model_ids_json) value.model_ids = exactJSON.parse(String(value.model_ids_json));
-    if (page === 'models' && !row) { value.task_endpoints = { chat: { endpoints: ['openai'], preferred_endpoint: 'openai' } }; value.pricing = []; value.tasks = ['chat']; }
+    if (page === 'channels' && !row) { void act(async () => { setOnboardingCatalog(items(await request('/admin/models'))); }, 'onboarding'); return; }
+    if (page === 'channels' || page === 'models') {
+      if (!row) Object.assign(value, { id: '', display_name: '', vendor: '', tasks: [], task_endpoints: {}, pricing: [], input_modalities: [], traits: [], status: 'available', enabled: false, subscription_only: false });
+      setCatalogEditor({ kind: page === 'channels' ? 'channel' : 'model', value, editing: !!row }); return;
+    }
     setEditor({ title: t(row ? 'edit' : 'create') + ' · ' + t(page), fields: definition.fields, value, hint: definition.hint, save: async output => {
       const response = await request(path + (row && page !== 'models' ? '/' + encodeURIComponent(String(row.id)) : ''), row && page !== 'models' ? 'PATCH' : 'POST', output);
       if (page === 'redeemcodes') { const codes = response.codes; if (Array.isArray(codes)) setSecret(codes.map(code => typeof code === 'string' ? code : String((code as Row).code)).join('\n')); }
@@ -83,6 +91,7 @@ export function AdminPages({ page, onConfigChanged }: { page: string; onConfigCh
     {error && !Object.keys(data).length ? null : definition ? <div className="panel table-panel"><Filters title={t(page)} query={filter} onQuery={setFilter} queryLabel={t('search')} placeholder={t('search')} clearLabel={t('clearFilters')} removeLabel={t('removeFilter')} onClear={clearFilters} count={hasFilters ? t('filteredCount', { visible: rows.length, total: allRows.length }) : t('recordsCount', { count: allRows.length })} activeFilters={statusKeys.filter(key => statusFilters[key]).map(key => ({ id: key, label: `${t(key === 'redeemed_by' || key === 'disabled' ? 'status' : key)}: ${statusLabel(key, statusFilters[key])}`, onRemove: () => setStatusFilters(old => ({ ...old, [key]: '' })) }))} slots={statusKeys.length > 0 ? statusKeys.map(key => <Select className="status-filter" key={key} aria-label={t(key === 'redeemed_by' ? 'status' : key)} value={statusFilters[key] ?? ''} options={[{ label: `${t(key === 'redeemed_by' || key === 'disabled' ? 'status' : key)} · ${t('allStatuses')}`, value: '' }, ...[...new Set(allRows.map(row => statusValue(row, key)))].filter(Boolean).map(value => ({ label: `${statusLabel(key, value)} (${allRows.filter(row => statusValue(row, key) === value).length})`, value }))]} onChange={value => setStatusFilters(old => ({ ...old, [key]: String(value) }))} />) : undefined} /><RecordTable rows={rows} busy={busy} columns={definition.columns} filtered={hasFilters} onReset={clearFilters} actions={row => <>
       {definition.fields && page !== 'redeemcodes' && <Button size="small" disabled={!!actionBusy} onClick={() => editResource(row)}>{t('edit')}</Button>}
       {page === 'channels' && <Button size="small" disabled={!!actionBusy} loading={actionBusy === `probe:${String(row.id)}`} onClick={() => act(async () => { const result = await request('/admin/channels/' + encodeURIComponent(String(row.id)) + '/probe', 'POST'); setDetail(result); await load(); }, `probe:${String(row.id)}`)}>{t('probe')}</Button>}
+      {page === 'channels' && <Button size="small" disabled={!!actionBusy} loading={actionBusy === `discover:${String(row.id)}`} onClick={() => act(async () => { setDiscoveryEditor({ channel: row, catalog: items(await request('/admin/models')) }); }, `discover:${String(row.id)}`)}>{t('discoverModels')}</Button>}
       {page === 'channels' && <Button size="small" status="danger" disabled={!!actionBusy} onClick={() => feedback.confirm({ title: t('confirmDeleteChannel'), onOk: () => act(async () => { await request('/admin/channels/' + encodeURIComponent(String(row.id)), 'DELETE'); await load(); }) })}>{t('delete')}</Button>}
       {page === 'redeemcodes' && <Button size="small" status="danger" disabled={!!actionBusy || Boolean(row.redeemed_by)} onClick={() => feedback.confirm({ title: t('confirmDeleteCode'), onOk: () => act(async () => { await request('/admin/redeemcodes/' + encodeURIComponent(String(row.id)), 'DELETE'); await load(); }) })}>{t('delete')}</Button>}
       {page === 'models' && <Button size="small" status="danger" disabled={!!actionBusy} onClick={() => feedback.confirm({ title: t('confirmDelete'), onOk: () => act(async () => { await request('/admin/models/' + encodeURIComponent(String(row.id)), 'DELETE'); await load(); }) })}>{t('disabled')}</Button>}
@@ -107,6 +116,9 @@ export function AdminPages({ page, onConfigChanged }: { page: string; onConfigCh
           <div className="provider-card-footer"><Button type={row.configured ? 'secondary' : 'primary'} long icon={<IconEdit />} onClick={() => editPayment(row)}>{t(row.configured ? 'edit' : 'configureProvider')}</Button></div></div>;
       })}</div> : null}
     {editor && <Editor {...editor} onCancel={() => setEditor(undefined)} onSave={editor.save} />}
+    {catalogEditor && <CatalogEditorModal {...catalogEditor} onCancel={() => setCatalogEditor(undefined)} onSaved={load} />}
+    {onboardingCatalog && <ProviderOnboarding catalog={onboardingCatalog} onCancel={() => setOnboardingCatalog(undefined)} onSaved={load} />}
+    {discoveryEditor && <SavedDiscoveryModal {...discoveryEditor} onCancel={() => setDiscoveryEditor(undefined)} onSaved={load} />}
     {secret && <Secret kind="codes" value={secret} close={() => setSecret('')} />}{detail && <Details row={detail} close={() => setDetail(undefined)} />}
   </>;
 }

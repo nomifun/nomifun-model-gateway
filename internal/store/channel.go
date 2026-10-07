@@ -13,6 +13,7 @@ import (
 	v1 "github.com/nomifun/nomifun-model-gateway/contract/v1"
 	"github.com/nomifun/nomifun-model-gateway/internal/core"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func ValidateChannel(c core.Channel) error {
@@ -27,6 +28,9 @@ func ValidateChannel(c core.Channel) error {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return errors.New("channel base URL must be an absolute HTTP(S) address without credentials, query or fragment")
+	}
+	if strings.Contains(strings.ToLower(u.Hostname()), "your-") {
+		return errors.New("replace the resource or workspace placeholder in the channel base URL")
 	}
 	var models map[string]string
 	if json.Unmarshal([]byte(c.ModelsJSON), &models) != nil || len(models) == 0 {
@@ -98,21 +102,33 @@ func (s *Store) ListChannels(ctx context.Context) ([]core.Channel, error) {
 
 // UpdateChannel changes operational routing controls only. Upstream key and
 // identity are immutable; changing an account always creates a new channel.
-func (s *Store) UpdateChannel(ctx context.Context, c core.Channel, plainKey string) error {
-	old, err := s.Channel(ctx, c.ID)
-	if err != nil {
-		return err
-	}
-	if c.Kind != old.Kind || c.BaseURL != old.BaseURL || c.APIVersion != old.APIVersion || plainKey != "" {
-		return ErrImmutableChannel
-	}
-	if err = ValidateChannel(c); err != nil {
-		return err
-	}
-	return s.db.WithContext(ctx).Model(&core.Channel{}).Where("id = ?", c.ID).Updates(map[string]any{"name": c.Name, "models_json": c.ModelsJSON, "endpoints_json": c.EndpointsJSON, "priority": c.Priority, "weight": c.Weight, "enabled": c.Enabled}).Error
+func (s *Store) UpdateChannel(ctx context.Context, c core.Channel, plainKey string, validators ...func(*gorm.DB, core.Channel, core.Channel) error) error {
+	return dbError(s.catalogTransaction(ctx, func(tx *gorm.DB) error {
+		var old core.Channel
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&old, c.ID).Error; err != nil {
+			return err
+		}
+		if c.Kind != old.Kind || c.BaseURL != old.BaseURL || c.APIVersion != old.APIVersion || plainKey != "" {
+			return ErrImmutableChannel
+		}
+		if err := ValidateChannel(c); err != nil {
+			return err
+		}
+		c.EncryptedKey = old.EncryptedKey
+		for _, validate := range validators {
+			if err := validate(tx, old, c); err != nil {
+				return err
+			}
+		}
+		return tx.Model(&core.Channel{}).Where("id = ?", c.ID).Updates(map[string]any{"name": c.Name, "models_json": c.ModelsJSON, "endpoints_json": c.EndpointsJSON, "priority": c.Priority, "weight": c.Weight, "enabled": c.Enabled}).Error
+	}))
 }
-func (s *Store) DeleteChannel(ctx context.Context, id int64) error {
-	return s.Transaction(ctx, func(tx *gorm.DB) error {
+func (s *Store) DeleteChannel(ctx context.Context, id int64, validators ...func(*gorm.DB, core.Channel) error) error {
+	return dbError(s.catalogTransaction(ctx, func(tx *gorm.DB) error {
+		var old core.Channel
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&old, id).Error; err != nil {
+			return err
+		}
 		var count int64
 		if err := tx.Model(&core.ResponseAffinity{}).Where("channel_id = ?", id).Count(&count).Error; err != nil {
 			return err
@@ -126,6 +142,11 @@ func (s *Store) DeleteChannel(ctx context.Context, id int64) error {
 		if count > 0 {
 			return errors.New("channel has session affinity; disable it instead")
 		}
+		for _, validate := range validators {
+			if err := validate(tx, old); err != nil {
+				return err
+			}
+		}
 		r := tx.Delete(&core.Channel{}, id)
 		if r.Error != nil {
 			return r.Error
@@ -134,7 +155,7 @@ func (s *Store) DeleteChannel(ctx context.Context, id int64) error {
 			return ErrNotFound
 		}
 		return nil
-	})
+	}))
 }
 func (s *Store) ChannelFailure(ctx context.Context, id int64, cooldown time.Duration) error {
 	until := time.Now().UTC().Add(cooldown)

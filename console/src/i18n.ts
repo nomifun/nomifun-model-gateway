@@ -2,6 +2,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 const en = {
+  discoverModels: 'Discover models',
   commandSelect: 'Select', removeFilter: 'Remove filter',
   reserved_balance: 'Reserved balance', plan_name: 'Plan name', period_start: 'Period starts', period_end: 'Period ends', quota_total: 'Total token quota', subscription_id: 'Subscription ID',
   platformGroup: 'Model services', billingGroup: 'Billing & commerce', operationsGroup: 'Operations & settings', switchWorkspace: 'Switch workspace', personalWorkspace: 'Workspace', adminWorkspace: 'Admin console', darkMode: 'Dark mode', lightMode: 'Light mode', independentOperator: 'Independently operated by a community partner', oneConnection: 'One connection · Native model protocols', nativeProtocols: 'Native protocol access', clearUsage: 'Clear usage and billing', scopedAccess: 'Scoped API key access', accountAccess: 'Account access', loginWelcome: 'Welcome back', namePlaceholder: 'Your name', passwordPlaceholder: 'Enter your password', alreadyRegistered: 'Already have an account?', newHere: 'New here?', skipContent: 'Skip to main content', navigation: 'Navigation', openNavigation: 'Open navigation', searchPages: 'Quick navigation', searchPagesPlaceholder: 'Search page names…', noSearchResults: 'No matches found', closeSearch: 'Close',
@@ -28,6 +29,7 @@ const en = {
   reservationWarning: 'Reconcile only after reviewing upstream metering. Releasing an accepted request without evidence can undercharge.', usageJSON: 'Verified usage (JSON)', reconcileAction: 'Action', settleAction: 'Settle with verified usage', releaseAction: 'Release reservation', auditDescription: 'Security and administrative actions. Raw credentials and model content are excluded.', ledgerDescription: 'Immutable wallet changes, including payment credits and request settlement.', reservationsDescription: 'Inspect pending reservations and explicitly reconcile interrupted requests.', terms: 'Terms', privacy: 'Privacy', homepage: 'Homepage', purchase: 'Purchase', select: 'Select', booleanTrue: 'Yes', booleanFalse: 'No', dataError: 'No data is shown because the API failed. No sample data is substituted.',
 };
 const zh: Record<keyof typeof en, string> = {
+  discoverModels: '发现模型',
   commandSelect: '选择', removeFilter: '移除筛选',
   reserved_balance: '预扣余额', plan_name: '套餐名称', period_start: '周期开始时间', period_end: '周期结束时间', quota_total: 'Token 总额度', subscription_id: '订阅 ID',
   platformGroup: '模型服务', billingGroup: '商业管理', operationsGroup: '运行与设置', switchWorkspace: '切换工作台', personalWorkspace: '工作台', adminWorkspace: '管理台', darkMode: '深色模式', lightMode: '浅色模式', independentOperator: '社区伙伴独立运营', oneConnection: '一个入口 · 原生模型协议', nativeProtocols: '原生协议接入', clearUsage: '清晰用量与账单', scopedAccess: '可控的密钥权限', accountAccess: '账户访问', loginWelcome: '欢迎回来', namePlaceholder: '你的名称', passwordPlaceholder: '请输入密码', alreadyRegistered: '已有账户？', newHere: '还没有账户？', skipContent: '跳转到主要内容', navigation: '导航', openNavigation: '打开导航', searchPages: '快速跳转', searchPagesPlaceholder: '搜索页面名称…', noSearchResults: '未找到匹配项', closeSearch: '关闭',

@@ -11,6 +11,12 @@ responsible for pricing, subscriptions, service terms, privacy and operations.
 The NomiFun Desktop provider is optional; users enter the partner's URL and key
 at runtime, and partners do not rebuild the desktop application.
 
+The console's channel creation flow supports [provider entry templates](docs/operations/provider-presets.md),
+bounded native model discovery, mapping tables, visual task/endpoint/price forms
+and publication checks. Incomplete models remain disabled; existing public model
+IDs cannot be overwritten by creation or discovery. See the
+[local acceptance and Desktop handoff](docs/partners/provider-onboarding-desktop-handoff.md).
+
 NomiFun 官方不运营网关、不出售 API，也不做商业化运营。网关由社区伙伴独立运营；
 桌面端的网关 Provider 是可选项，不改变其他供应商的地位，也不与其他功能绑定。
 源码实现、本地合成验收、真实上游/商户验收和生产容量证据分别报告，不能互相替代。

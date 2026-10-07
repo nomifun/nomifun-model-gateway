@@ -11,7 +11,8 @@ export const session = {
 };
 export class APIError extends Error {
   status: number;
-  constructor(message: string, status: number) { super(message); this.name = 'APIError'; this.status = status; }
+  details?: Row;
+  constructor(message: string, status: number, details?: Row) { super(message); this.name = 'APIError'; this.status = status; this.details = details; }
 }
 export async function request<T = Row>(path: string, method = 'GET', body?: unknown): Promise<T> {
   if (!path.startsWith('/') || path.startsWith('//')) throw new Error('Invalid API path');
@@ -27,7 +28,7 @@ export async function request<T = Row>(path: string, method = 'GET', body?: unkn
     if (response.status === 401) { session.clear(); globalThis.dispatchEvent?.(new Event('nmg-session-expired')); }
     const error = value.error as Row | string | undefined;
     const message = typeof error === 'string' ? error : String(error?.message ?? value.message ?? 'request_failed');
-    throw new APIError(message, response.status);
+    throw new APIError(message, response.status, value);
   }
   return value as T;
 }

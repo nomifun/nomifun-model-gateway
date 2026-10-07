@@ -3,7 +3,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
@@ -22,9 +21,15 @@ func (s *Server) adminRoutes(admin *gin.RouterGroup) {
 	admin.PATCH("/channels/:id", s.updateChannel)
 	admin.DELETE("/channels/:id", s.deleteChannel)
 	admin.POST("/channels/:id/probe", s.probeChannel)
+	admin.POST("/channels/:id/discover", s.discoverChannel)
+	admin.POST("/channels/discover-preview", s.discoverChannelPreview)
 	admin.GET("/models", s.adminModels)
 	admin.POST("/models", s.saveModel)
+	admin.POST("/models/check", s.checkModelPublication)
+	admin.PATCH("/models/:id", s.saveModel)
 	admin.DELETE("/models/:id", s.disableModel)
+	admin.POST("/onboarding/check", s.checkOnboarding)
+	admin.POST("/onboarding", s.createOnboarding)
 	admin.GET("/pricing", s.adminModels)
 	admin.PUT("/pricing/:id", s.savePricing)
 	admin.GET("/plans", s.adminPlans)
@@ -117,12 +122,11 @@ func (s *Server) updateChannel(c *gin.Context) {
 	if !s.decode(c, &in) {
 		return
 	}
-	err := s.Store.UpdateChannel(c.Request.Context(), in.channel(id), in.APIKey)
+	err := s.Store.UpdateChannel(c.Request.Context(), in.channel(id), in.APIKey, s.checkedChannelAudit(c, "channel.update"))
 	if err != nil {
-		s.fail(c, err)
-		return
-	}
-	if !s.audit(c, "channel.update", strconvID(id)) {
+		if !publicationFailure(c, err) {
+			s.fail(c, err)
+		}
 		return
 	}
 	c.JSON(200, gin.H{"ok": true})
@@ -132,11 +136,15 @@ func (s *Server) deleteChannel(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := s.Store.DeleteChannel(c.Request.Context(), id); err != nil {
-		s.fail(c, err)
-		return
-	}
-	if !s.audit(c, "channel.delete", strconvID(id)) {
+	err := s.Store.DeleteChannel(c.Request.Context(), id, func(tx *gorm.DB, old core.Channel) error {
+		updated := old
+		updated.Enabled = false
+		return s.checkedChannelAudit(c, "channel.delete")(tx, old, updated)
+	})
+	if err != nil {
+		if !publicationFailure(c, err) {
+			s.fail(c, err)
+		}
 		return
 	}
 	c.JSON(200, gin.H{"ok": true})
@@ -191,16 +199,21 @@ func (s *Server) saveModel(c *gin.Context) {
 	if !s.decode(c, &in) {
 		return
 	}
-	enabled := true
+	create := c.Param("id") == ""
+	enabled := false
 	subscriptionOnly := false
-	var existing core.Model
-	err := s.Store.DB().WithContext(c.Request.Context()).Where("id = ?", in.ID).First(&existing).Error
-	if err == nil {
+	if !create {
+		if in.ID != c.Param("id") {
+			s.fail(c, &relay.Error{Status: 400, Code: "invalid_request_error", Message: "The public model ID cannot change during editing."})
+			return
+		}
+		existing, err := s.Store.ModelRecord(c.Request.Context(), in.ID)
+		if err != nil {
+			s.fail(c, err)
+			return
+		}
 		enabled = existing.Enabled
 		subscriptionOnly = existing.SubscriptionOnly
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		s.databaseError(c, err)
-		return
 	}
 	if in.Enabled != nil {
 		enabled = *in.Enabled
@@ -208,14 +221,23 @@ func (s *Server) saveModel(c *gin.Context) {
 	if in.SubscriptionOnly != nil {
 		subscriptionOnly = *in.SubscriptionOnly
 	}
-	if err = s.Store.SaveModelAccess(c.Request.Context(), in.Model, enabled, subscriptionOnly); err != nil {
-		s.fail(c, err)
+	model := modelDTO{Model: in.Model, Enabled: enabled, SubscriptionOnly: subscriptionOnly}
+	model.IncludedInPlan = false
+	var err error
+	status := 200
+	if create {
+		status = 201
+		err = s.Store.CreateModelAccess(c.Request.Context(), in.Model, enabled, subscriptionOnly, s.checkedModelAudit(c, model, "model.create"))
+	} else {
+		err = s.Store.UpdateModelAccess(c.Request.Context(), in.Model, enabled, subscriptionOnly, s.checkedModelAudit(c, model, "model.update"))
+	}
+	if err != nil {
+		if !publicationFailure(c, err) {
+			s.fail(c, err)
+		}
 		return
 	}
-	if !s.audit(c, "model.save", in.ID) {
-		return
-	}
-	c.JSON(200, gin.H{"model": modelDTO{Model: in.Model, Enabled: enabled, SubscriptionOnly: subscriptionOnly}})
+	c.JSON(status, gin.H{"model": model})
 }
 func (s *Server) disableModel(c *gin.Context) {
 	id := c.Param("id")
@@ -241,21 +263,14 @@ func (s *Server) savePricing(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
-	model, err := s.Store.Model(c.Request.Context(), id)
+	err := s.Store.UpdateModelPricing(c.Request.Context(), id, in.Pricing, func(tx *gorm.DB, model store.OnboardingModel) error {
+		dto := modelDTO{Model: model.Definition, Enabled: model.Enabled, SubscriptionOnly: model.SubscriptionOnly}
+		return s.checkedModelAudit(c, dto, "pricing.save")(tx)
+	})
 	if err != nil {
-		s.fail(c, err)
-		return
-	}
-	var record core.Model
-	if s.databaseError(c, s.Store.DB().WithContext(c.Request.Context()).Where("id = ?", id).First(&record).Error) {
-		return
-	}
-	model.Pricing = in.Pricing
-	if err = s.Store.SaveModelAccess(c.Request.Context(), model, record.Enabled, record.SubscriptionOnly); err != nil {
-		s.fail(c, err)
-		return
-	}
-	if !s.audit(c, "pricing.save", id) {
+		if !publicationFailure(c, err) {
+			s.fail(c, err)
+		}
 		return
 	}
 	c.JSON(200, gin.H{"ok": true})
