@@ -143,9 +143,9 @@ and identify modifications. GPL/LGPL/AGPL and unknown-license code are prohibite
 See [LICENSE](LICENSE), [NOTICE](NOTICE), [AGENTS.md](AGENTS.md) and
 [license audit](docs/security/license-audit.md).
 
-CI builds the locked console before Go checks, tests Linux/Windows, runs Linux
-race checks, and enforces licenses. Remote workflow execution is separate from
-local evidence. [Acceptance evidence and open external gates](docs/operations/acceptance.md)
+Validation runs locally with the commands above. Build the locked console before
+Go checks and run race checks in a local Linux environment.
+[Acceptance evidence and open external gates](docs/operations/acceptance.md)
 distinguish deterministic native/payment fixtures from real upstream and merchant
 acceptance. No live OpenAI/Anthropic/Gemini or merchant transaction is implied by
 a mock or synthetic signed callback.

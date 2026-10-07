@@ -24,6 +24,9 @@
 
 ## Build and validation
 
+Validation is local. Do not add GitHub Actions workflows or hosted CI unless
+the user explicitly requests them.
+
 Use the Go version pinned in `go.mod` (currently Go 1.27.1) and Node.js 24 or
 later for the dependency-license audit. From this repository:
 

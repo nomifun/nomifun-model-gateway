@@ -91,7 +91,7 @@ JS index-DEGTvusM.js；CSS index-C4U-HF4R.css
 `pwsh -NoProfile -File scripts/check-licenses.ps1` 在最终源代码上通过：Go 导入链/测试依赖与
 257 个锁定 npm 包。前端 gate 回归测试 5/5，未知/copyleft/缺失引用/完整性错误仍拒绝。
 已核对 x/sys/x/crypto 的 BSD-3-Clause 和 ugorji codec 的 MIT 汇编警告。Docker 构建也执行
-生产 Go 严格许可检查与 notices 收集。当前没有执行或发布远程 GitHub workflow。
+生产 Go 严格许可检查与 notices 收集。验收均在本地执行。
 
 其余核心单元/原生/商户与 Desktop 检查由相应模块 owner 报告；root 最终汇报应同时列出
 这些证据，不能用本文的打包检查覆盖未跑的交叉平台、原生桌面或真实商户验收。
