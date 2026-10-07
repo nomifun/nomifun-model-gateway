@@ -1,0 +1,10 @@
+number-precision 1.6.0
+Publisher author: cam song
+Publisher repository: https://github.com/nefe/number-precision
+Exact source commit: 6e721680ca116b5b2c3c03db2b36ac57358cd595
+Publisher package.json license declaration: MIT
+
+This source commit and published npm archive do not include a standalone
+LICENSE or copyright file. The publisher's original package metadata is
+retained in the frontend aggregate. No implementation source was copied or
+modified for this supplemental attribution.

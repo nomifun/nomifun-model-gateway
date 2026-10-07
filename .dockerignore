@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+.git
+.tools
+.env
+.env.*
+!.env.example
+**/node_modules
+console/dist
+bin
+dist
+data
+backups
+*.exe
+*.test
+*.out
+*.key
+*.pem
+# internal/console/assets is intentionally included and tracked.

@@ -1,0 +1,23 @@
+{
+  "models": {
+    "openai": "mock-compatible",
+    "openai-response": "mock-gpt",
+    "anthropic": "mock-claude",
+    "gemini": "mock-gemini",
+    "image-generation": "mock-image",
+    "embeddings": "mock-embedding",
+    "jina-rerank": "mock-rerank"
+  },
+  "error_keys": {
+    "insufficient_balance": "nmg_mock_insufficient_balance",
+    "subscription_expired": "nmg_mock_subscription_expired",
+    "model_not_in_plan": "nmg_mock_model_not_in_plan",
+    "key_expired": "nmg_mock_key_expired",
+    "rate_limited": "nmg_mock_rate_limited"
+  },
+  "limited_key": "nmg_mock_limited",
+  "limited_models": ["mock-compatible"],
+  "cross_key": "nmg_mock_other",
+  "count_tokens": true,
+  "synthetic_assertions": true
+}

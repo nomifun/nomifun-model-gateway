@@ -1,0 +1,2034 @@
+# SPDX-License-Identifier: Apache-2.0
+# Frozen v1 control-plane schema; native inference bodies intentionally remain opaque.
+openapi: "3.1.0"
+jsonSchemaDialect: "https://json-schema.org/draft/2020-12/schema"
+info:
+  title: "NomiFun Model Gateway Protocol v1"
+  version: "1.0"
+  summary: "Independent community-operated gateway contract and M0 synthetic mock"
+  description: "NomiFun official does not operate gateway instances, sell API access or run paid services. Community partners independently operate instances. Clients configure the base URL at runtime. This document freezes control-plane fields and native passthrough boundaries; opaque native schemas are not exhaustive upstream validators. Unknown additive control fields are accepted. credentials cannot enter URLs except the sole inbound Gemini ?key compatibility on its two native routes; never use query credentials in desktop clients, examples, redirects or logs. Auth conflicts/malformed sources fail401. All responses require x-request-id and Cache-Control:no-store;429 also Retry-After. See docs/protocol/v1.md for semantic and affinity obligations."
+  license:
+    name: "Apache License 2.0"
+    identifier: "Apache-2.0"
+servers:
+  -
+    url: "/"
+    description: "Runtime-configured deployment API root; no official operated instance or compiled-in commercial URL."
+tags:
+  -
+    name: "Control plane"
+  -
+    name: "Native inference"
+security:
+  -
+    BearerAuth: []
+  -
+    XAPIKeyAuth: []
+  -
+    XGoogAPIKeyAuth: []
+paths:
+  "/nomifun/v1/meta":
+    get:
+      operationId: "getMeta"
+      tags:
+        - "Control plane"
+      summary: "Read anonymous instance metadata"
+      security: []
+      responses:
+        "200":
+          description: "Success. Required fields retain exact v1 semantics and unknown additive fields are accepted."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/ControlFailure"
+        "401":
+          $ref: "#/components/responses/ControlFailure"
+        "402":
+          $ref: "#/components/responses/ControlFailure"
+        "403":
+          $ref: "#/components/responses/ControlFailure"
+        "404":
+          $ref: "#/components/responses/ControlFailure"
+        "405":
+          $ref: "#/components/responses/ControlFailure"
+        "413":
+          $ref: "#/components/responses/ControlFailure"
+        "415":
+          $ref: "#/components/responses/ControlFailure"
+        "429":
+          $ref: "#/components/responses/ControlRateLimited"
+        "500":
+          $ref: "#/components/responses/ControlFailure"
+        "501":
+          $ref: "#/components/responses/ControlFailure"
+  "/nomifun/v1/catalog":
+    get:
+      operationId: "getCatalog"
+      tags:
+        - "Control plane"
+      summary: "Read models authorized for current key"
+      responses:
+        "200":
+          description: "Success. Required fields retain exact v1 semantics and unknown additive fields are accepted."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Catalog"
+        "400":
+          $ref: "#/components/responses/ControlFailure"
+        "401":
+          $ref: "#/components/responses/ControlFailure"
+        "402":
+          $ref: "#/components/responses/ControlFailure"
+        "403":
+          $ref: "#/components/responses/ControlFailure"
+        "404":
+          $ref: "#/components/responses/ControlFailure"
+        "405":
+          $ref: "#/components/responses/ControlFailure"
+        "413":
+          $ref: "#/components/responses/ControlFailure"
+        "415":
+          $ref: "#/components/responses/ControlFailure"
+        "429":
+          $ref: "#/components/responses/ControlRateLimited"
+        "500":
+          $ref: "#/components/responses/ControlFailure"
+        "501":
+          $ref: "#/components/responses/ControlFailure"
+  "/nomifun/v1/account":
+    get:
+      operationId: "getAccount"
+      tags:
+        - "Control plane"
+      summary: "Read account snapshot for current key"
+      responses:
+        "200":
+          description: "Success. Required fields retain exact v1 semantics and unknown additive fields are accepted."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          $ref: "#/components/responses/ControlFailure"
+        "401":
+          $ref: "#/components/responses/ControlFailure"
+        "402":
+          $ref: "#/components/responses/ControlFailure"
+        "403":
+          $ref: "#/components/responses/ControlFailure"
+        "404":
+          $ref: "#/components/responses/ControlFailure"
+        "405":
+          $ref: "#/components/responses/ControlFailure"
+        "413":
+          $ref: "#/components/responses/ControlFailure"
+        "415":
+          $ref: "#/components/responses/ControlFailure"
+        "429":
+          $ref: "#/components/responses/ControlRateLimited"
+        "500":
+          $ref: "#/components/responses/ControlFailure"
+        "501":
+          $ref: "#/components/responses/ControlFailure"
+  "/v1/models":
+    get:
+      operationId: "listNativeModels"
+      tags:
+        - "Native inference"
+      summary: "OpenAI-compatible visible model list; IDs match authorized catalog"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+        "401":
+          $ref: "#/components/responses/OpenAIFailure"
+        "402":
+          $ref: "#/components/responses/OpenAIFailure"
+        "403":
+          $ref: "#/components/responses/OpenAIFailure"
+        "404":
+          $ref: "#/components/responses/OpenAIFailure"
+        "405":
+          $ref: "#/components/responses/OpenAIFailure"
+        "429":
+          $ref: "#/components/responses/OpenAIRateLimited"
+        default:
+          $ref: "#/components/responses/OpenAIFailure"
+  "/v1/chat/completions":
+    post:
+      operationId: "createChatCompletion"
+      tags:
+        - "Native inference"
+      summary: "Native openai passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+            "text/event-stream":
+              schema:
+                $ref: "#/components/schemas/RawSSE"
+              x-sse-event-schema:
+                $ref: "#/components/schemas/ChatChunk"
+              x-sse-terminal-value: "[DONE]"
+        "400":
+          $ref: "#/components/responses/OpenAIFailure"
+        "401":
+          $ref: "#/components/responses/OpenAIFailure"
+        "402":
+          $ref: "#/components/responses/OpenAIFailure"
+        "403":
+          $ref: "#/components/responses/OpenAIFailure"
+        "404":
+          $ref: "#/components/responses/OpenAIFailure"
+        "405":
+          $ref: "#/components/responses/OpenAIFailure"
+        "413":
+          $ref: "#/components/responses/OpenAIFailure"
+        "415":
+          $ref: "#/components/responses/OpenAIFailure"
+        "429":
+          $ref: "#/components/responses/OpenAIRateLimited"
+        "500":
+          $ref: "#/components/responses/OpenAIFailure"
+        "501":
+          $ref: "#/components/responses/OpenAIFailure"
+        "502":
+          $ref: "#/components/responses/OpenAIFailure"
+        "503":
+          $ref: "#/components/responses/OpenAIFailure"
+        "504":
+          $ref: "#/components/responses/OpenAIFailure"
+        default:
+          $ref: "#/components/responses/OpenAIFailure"
+  "/v1/responses":
+    post:
+      operationId: "createResponse"
+      tags:
+        - "Native inference"
+      summary: "Native openai-response passthrough"
+      description: "Preserve store/previous_response_id/include reasoning.encrypted_content. Key+response-ID bound to the original upstream; unknown/cross-key/lost affinity fails HTTP400 invalid_previous_response_id without account failover. Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+            "text/event-stream":
+              schema:
+                $ref: "#/components/schemas/RawSSE"
+              x-sse-event-schema:
+                $ref: "#/components/schemas/ResponseEvent"
+        "400":
+          $ref: "#/components/responses/OpenAIFailure"
+        "401":
+          $ref: "#/components/responses/OpenAIFailure"
+        "402":
+          $ref: "#/components/responses/OpenAIFailure"
+        "403":
+          $ref: "#/components/responses/OpenAIFailure"
+        "404":
+          $ref: "#/components/responses/OpenAIFailure"
+        "405":
+          $ref: "#/components/responses/OpenAIFailure"
+        "413":
+          $ref: "#/components/responses/OpenAIFailure"
+        "415":
+          $ref: "#/components/responses/OpenAIFailure"
+        "429":
+          $ref: "#/components/responses/OpenAIRateLimited"
+        "500":
+          $ref: "#/components/responses/OpenAIFailure"
+        "501":
+          $ref: "#/components/responses/OpenAIFailure"
+        "502":
+          $ref: "#/components/responses/OpenAIFailure"
+        "503":
+          $ref: "#/components/responses/OpenAIFailure"
+        "504":
+          $ref: "#/components/responses/OpenAIFailure"
+        default:
+          $ref: "#/components/responses/OpenAIFailure"
+  "/v1/embeddings":
+    post:
+      operationId: "createEmbeddings"
+      tags:
+        - "Native inference"
+      summary: "Native embeddings passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+        "400":
+          $ref: "#/components/responses/OpenAIFailure"
+        "401":
+          $ref: "#/components/responses/OpenAIFailure"
+        "402":
+          $ref: "#/components/responses/OpenAIFailure"
+        "403":
+          $ref: "#/components/responses/OpenAIFailure"
+        "404":
+          $ref: "#/components/responses/OpenAIFailure"
+        "405":
+          $ref: "#/components/responses/OpenAIFailure"
+        "413":
+          $ref: "#/components/responses/OpenAIFailure"
+        "415":
+          $ref: "#/components/responses/OpenAIFailure"
+        "429":
+          $ref: "#/components/responses/OpenAIRateLimited"
+        "500":
+          $ref: "#/components/responses/OpenAIFailure"
+        "501":
+          $ref: "#/components/responses/OpenAIFailure"
+        "502":
+          $ref: "#/components/responses/OpenAIFailure"
+        "503":
+          $ref: "#/components/responses/OpenAIFailure"
+        "504":
+          $ref: "#/components/responses/OpenAIFailure"
+        default:
+          $ref: "#/components/responses/OpenAIFailure"
+  "/v1/images/generations":
+    post:
+      operationId: "generateImage"
+      tags:
+        - "Native inference"
+      summary: "Native image-generation passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+        "400":
+          $ref: "#/components/responses/OpenAIFailure"
+        "401":
+          $ref: "#/components/responses/OpenAIFailure"
+        "402":
+          $ref: "#/components/responses/OpenAIFailure"
+        "403":
+          $ref: "#/components/responses/OpenAIFailure"
+        "404":
+          $ref: "#/components/responses/OpenAIFailure"
+        "405":
+          $ref: "#/components/responses/OpenAIFailure"
+        "413":
+          $ref: "#/components/responses/OpenAIFailure"
+        "415":
+          $ref: "#/components/responses/OpenAIFailure"
+        "429":
+          $ref: "#/components/responses/OpenAIRateLimited"
+        "500":
+          $ref: "#/components/responses/OpenAIFailure"
+        "501":
+          $ref: "#/components/responses/OpenAIFailure"
+        "502":
+          $ref: "#/components/responses/OpenAIFailure"
+        "503":
+          $ref: "#/components/responses/OpenAIFailure"
+        "504":
+          $ref: "#/components/responses/OpenAIFailure"
+        default:
+          $ref: "#/components/responses/OpenAIFailure"
+  "/v1/images/edits":
+    post:
+      operationId: "editImage"
+      tags:
+        - "Native inference"
+      summary: "Native image-generation passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+          "multipart/form-data":
+            schema:
+              type: "object"
+              additionalProperties: true
+              description: "Native multipart form including binary images; this is intentionally not an exhaustive image API schema."
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+        "400":
+          $ref: "#/components/responses/OpenAIFailure"
+        "401":
+          $ref: "#/components/responses/OpenAIFailure"
+        "402":
+          $ref: "#/components/responses/OpenAIFailure"
+        "403":
+          $ref: "#/components/responses/OpenAIFailure"
+        "404":
+          $ref: "#/components/responses/OpenAIFailure"
+        "405":
+          $ref: "#/components/responses/OpenAIFailure"
+        "413":
+          $ref: "#/components/responses/OpenAIFailure"
+        "415":
+          $ref: "#/components/responses/OpenAIFailure"
+        "429":
+          $ref: "#/components/responses/OpenAIRateLimited"
+        "500":
+          $ref: "#/components/responses/OpenAIFailure"
+        "501":
+          $ref: "#/components/responses/OpenAIFailure"
+        "502":
+          $ref: "#/components/responses/OpenAIFailure"
+        "503":
+          $ref: "#/components/responses/OpenAIFailure"
+        "504":
+          $ref: "#/components/responses/OpenAIFailure"
+        default:
+          $ref: "#/components/responses/OpenAIFailure"
+  "/v1/rerank":
+    post:
+      operationId: "rerank"
+      tags:
+        - "Native inference"
+      summary: "Native jina-rerank passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+        "400":
+          $ref: "#/components/responses/OpenAIFailure"
+        "401":
+          $ref: "#/components/responses/OpenAIFailure"
+        "402":
+          $ref: "#/components/responses/OpenAIFailure"
+        "403":
+          $ref: "#/components/responses/OpenAIFailure"
+        "404":
+          $ref: "#/components/responses/OpenAIFailure"
+        "405":
+          $ref: "#/components/responses/OpenAIFailure"
+        "413":
+          $ref: "#/components/responses/OpenAIFailure"
+        "415":
+          $ref: "#/components/responses/OpenAIFailure"
+        "429":
+          $ref: "#/components/responses/OpenAIRateLimited"
+        "500":
+          $ref: "#/components/responses/OpenAIFailure"
+        "501":
+          $ref: "#/components/responses/OpenAIFailure"
+        "502":
+          $ref: "#/components/responses/OpenAIFailure"
+        "503":
+          $ref: "#/components/responses/OpenAIFailure"
+        "504":
+          $ref: "#/components/responses/OpenAIFailure"
+        default:
+          $ref: "#/components/responses/OpenAIFailure"
+  "/v1/messages":
+    post:
+      operationId: "createMessage"
+      tags:
+        - "Native inference"
+      summary: "Native anthropic passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      parameters:
+        -
+          name: "anthropic-version"
+          in: "header"
+          required: false
+          schema:
+            type: "string"
+            minLength: 1
+          description: "Optional at gateway ingress. Preserve an explicit native version unchanged; when absent, M1 uses and declares the operator-configured default without version conversion."
+        -
+          name: "X-NomiFun-Session-ID"
+          in: "header"
+          required: false
+          schema:
+            type: "string"
+            minLength: 1
+          description: "Optional key-scoped cache-affinity identity. 24h idle lifetime; expired/lost bindings fail closed, requiring a new session ID."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+            "text/event-stream":
+              schema:
+                $ref: "#/components/schemas/RawSSE"
+              x-sse-event-schema:
+                $ref: "#/components/schemas/AnthropicEvent"
+        "400":
+          $ref: "#/components/responses/AnthropicFailure"
+        "401":
+          $ref: "#/components/responses/AnthropicFailure"
+        "402":
+          $ref: "#/components/responses/AnthropicFailure"
+        "403":
+          $ref: "#/components/responses/AnthropicFailure"
+        "404":
+          $ref: "#/components/responses/AnthropicFailure"
+        "405":
+          $ref: "#/components/responses/AnthropicFailure"
+        "413":
+          $ref: "#/components/responses/AnthropicFailure"
+        "415":
+          $ref: "#/components/responses/AnthropicFailure"
+        "429":
+          $ref: "#/components/responses/AnthropicRateLimited"
+        "500":
+          $ref: "#/components/responses/AnthropicFailure"
+        "501":
+          $ref: "#/components/responses/AnthropicFailure"
+        "502":
+          $ref: "#/components/responses/AnthropicFailure"
+        "503":
+          $ref: "#/components/responses/AnthropicFailure"
+        "504":
+          $ref: "#/components/responses/AnthropicFailure"
+        default:
+          $ref: "#/components/responses/AnthropicFailure"
+  "/v1/messages/count_tokens":
+    post:
+      operationId: "countMessageTokens"
+      tags:
+        - "Native inference"
+      summary: "Native anthropic passthrough"
+      description: "Optional; advertised by /v1/messages/count_tokens in meta.optional_endpoints. Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      parameters:
+        -
+          name: "anthropic-version"
+          in: "header"
+          required: false
+          schema:
+            type: "string"
+            minLength: 1
+          description: "Optional at gateway ingress. Preserve an explicit native version unchanged; when absent, M1 uses and declares the operator-configured default without version conversion."
+        -
+          name: "X-NomiFun-Session-ID"
+          in: "header"
+          required: false
+          schema:
+            type: "string"
+            minLength: 1
+          description: "Optional key-scoped cache-affinity identity. 24h idle lifetime; expired/lost bindings fail closed, requiring a new session ID."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+        "400":
+          $ref: "#/components/responses/AnthropicFailure"
+        "401":
+          $ref: "#/components/responses/AnthropicFailure"
+        "402":
+          $ref: "#/components/responses/AnthropicFailure"
+        "403":
+          $ref: "#/components/responses/AnthropicFailure"
+        "404":
+          $ref: "#/components/responses/AnthropicFailure"
+        "405":
+          $ref: "#/components/responses/AnthropicFailure"
+        "413":
+          $ref: "#/components/responses/AnthropicFailure"
+        "415":
+          $ref: "#/components/responses/AnthropicFailure"
+        "429":
+          $ref: "#/components/responses/AnthropicRateLimited"
+        "500":
+          $ref: "#/components/responses/AnthropicFailure"
+        "501":
+          $ref: "#/components/responses/AnthropicFailure"
+        "502":
+          $ref: "#/components/responses/AnthropicFailure"
+        "503":
+          $ref: "#/components/responses/AnthropicFailure"
+        "504":
+          $ref: "#/components/responses/AnthropicFailure"
+        default:
+          $ref: "#/components/responses/AnthropicFailure"
+  "/v1beta/models/{model}:generateContent":
+    post:
+      operationId: "generateContent"
+      tags:
+        - "Native inference"
+      summary: "Native gemini passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      security:
+        -
+          BearerAuth: []
+        -
+          XAPIKeyAuth: []
+        -
+          XGoogAPIKeyAuth: []
+        -
+          GeminiQueryKeyAuth: []
+      parameters:
+        -
+          name: "model"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            minLength: 1
+          description: "Native model ID, without the models/ prefix."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+        "400":
+          $ref: "#/components/responses/GeminiFailure"
+        "401":
+          $ref: "#/components/responses/GeminiFailure"
+        "402":
+          $ref: "#/components/responses/GeminiFailure"
+        "403":
+          $ref: "#/components/responses/GeminiFailure"
+        "404":
+          $ref: "#/components/responses/GeminiFailure"
+        "405":
+          $ref: "#/components/responses/GeminiFailure"
+        "413":
+          $ref: "#/components/responses/GeminiFailure"
+        "415":
+          $ref: "#/components/responses/GeminiFailure"
+        "429":
+          $ref: "#/components/responses/GeminiRateLimited"
+        "500":
+          $ref: "#/components/responses/GeminiFailure"
+        "501":
+          $ref: "#/components/responses/GeminiFailure"
+        "502":
+          $ref: "#/components/responses/GeminiFailure"
+        "503":
+          $ref: "#/components/responses/GeminiFailure"
+        "504":
+          $ref: "#/components/responses/GeminiFailure"
+        default:
+          $ref: "#/components/responses/GeminiFailure"
+  "/v1beta/models/{model}:streamGenerateContent":
+    post:
+      operationId: "streamGenerateContent"
+      tags:
+        - "Native inference"
+      summary: "Native gemini passthrough"
+      description: "Native payload validation remains native. No cross-protocol conversion. Unknown fields and stream deltas/signatures must survive production relay."
+      security:
+        -
+          BearerAuth: []
+        -
+          XAPIKeyAuth: []
+        -
+          XGoogAPIKeyAuth: []
+        -
+          GeminiQueryKeyAuth: []
+      parameters:
+        -
+          name: "model"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+            minLength: 1
+          description: "Native model ID, without the models/ prefix."
+        -
+          name: "alt"
+          in: "query"
+          required: false
+          schema:
+            type: "string"
+            enum:
+              - "sse"
+            default: "sse"
+          description: "Optional at gateway ingress; omitted alt defaults to native SSE. Explicit alt must be sse. Never put credentials in examples or desktop-generated URLs."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/NativeBody"
+      responses:
+        "200":
+          description: "Native success: opaque upstream JSON; preserve unknown fields. Streaming operations preserve raw native SSE data and event ordering."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/NativeBody"
+            "text/event-stream":
+              schema:
+                $ref: "#/components/schemas/RawSSE"
+              x-sse-event-schema:
+                $ref: "#/components/schemas/GeminiResponse"
+        "400":
+          $ref: "#/components/responses/GeminiFailure"
+        "401":
+          $ref: "#/components/responses/GeminiFailure"
+        "402":
+          $ref: "#/components/responses/GeminiFailure"
+        "403":
+          $ref: "#/components/responses/GeminiFailure"
+        "404":
+          $ref: "#/components/responses/GeminiFailure"
+        "405":
+          $ref: "#/components/responses/GeminiFailure"
+        "413":
+          $ref: "#/components/responses/GeminiFailure"
+        "415":
+          $ref: "#/components/responses/GeminiFailure"
+        "429":
+          $ref: "#/components/responses/GeminiRateLimited"
+        "500":
+          $ref: "#/components/responses/GeminiFailure"
+        "501":
+          $ref: "#/components/responses/GeminiFailure"
+        "502":
+          $ref: "#/components/responses/GeminiFailure"
+        "503":
+          $ref: "#/components/responses/GeminiFailure"
+        "504":
+          $ref: "#/components/responses/GeminiFailure"
+        default:
+          $ref: "#/components/responses/GeminiFailure"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: "http"
+      scheme: "bearer"
+      description: "Instance API key; same key accepted by each header alternative. Conflicting/malformed/repeated sources reject401."
+    XAPIKeyAuth:
+      type: "apiKey"
+      in: "header"
+      name: "x-api-key"
+      description: "Same instance API key accepted on every protected endpoint."
+    XGoogAPIKeyAuth:
+      type: "apiKey"
+      in: "header"
+      name: "x-goog-api-key"
+      description: "Same instance API key accepted on every protected endpoint."
+    GeminiQueryKeyAuth:
+      type: "apiKey"
+      in: "query"
+      name: "key"
+      description: "Sole legacy inbound URL-key exception on the two native Gemini routes. Use headers for desktop/examples. Query key must never appear in access logs or redirects; other routes reject key."
+  headers:
+    RequestID:
+      required: true
+      description: "Non-empty credential-free request identifier."
+      schema:
+        type: "string"
+        minLength: 1
+    NoStore:
+      required: true
+      description: "All responses must forbid caching of account/model/error data."
+      schema:
+        type: "string"
+        const: "no-store"
+    RetryAfter:
+      required: true
+      description: "Required on429. Seconds or HTTP-date per HTTP; mock emits seconds."
+      schema:
+        type: "string"
+        minLength: 1
+  responses:
+    OpenAIFailure:
+      description: "Native error preserved unchanged. Gateway-generated failures use OpenAIGatewayError; upstream errors need not contain gateway extensions."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/NativeBody"
+          x-generated-error-schema:
+            $ref: "#/components/schemas/OpenAIGatewayError"
+    OpenAIRateLimited:
+      description: "HTTP 429: rate_limited or native upstream rate limit. Retry-After required; gateway error extension follows OpenAIGatewayError."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/NativeBody"
+          x-generated-error-schema:
+            $ref: "#/components/schemas/OpenAIGatewayError"
+    AnthropicFailure:
+      description: "Native error preserved unchanged. Gateway-generated failures use AnthropicGatewayError; upstream errors need not contain gateway extensions."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/NativeBody"
+          x-generated-error-schema:
+            $ref: "#/components/schemas/AnthropicGatewayError"
+    AnthropicRateLimited:
+      description: "HTTP 429: rate_limited or native upstream rate limit. Retry-After required; gateway error extension follows AnthropicGatewayError."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/NativeBody"
+          x-generated-error-schema:
+            $ref: "#/components/schemas/AnthropicGatewayError"
+    GeminiFailure:
+      description: "Native error preserved unchanged. Gateway-generated failures use GeminiGatewayError; upstream errors need not contain gateway extensions."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/NativeBody"
+          x-generated-error-schema:
+            $ref: "#/components/schemas/GeminiGatewayError"
+    GeminiRateLimited:
+      description: "HTTP 429: rate_limited or native upstream rate limit. Retry-After required; gateway error extension follows GeminiGatewayError."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/NativeBody"
+          x-generated-error-schema:
+            $ref: "#/components/schemas/GeminiGatewayError"
+    ControlFailure:
+      description: "Gateway-generated control-plane error."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/OpenAIGatewayError"
+    ControlRateLimited:
+      description: "rate_limited; honor Retry-After."
+      headers:
+        x-request-id:
+          $ref: "#/components/headers/RequestID"
+        Cache-Control:
+          $ref: "#/components/headers/NoStore"
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        "application/json":
+          schema:
+            $ref: "#/components/schemas/OpenAIGatewayError"
+  schemas:
+    Int64:
+      type: "integer"
+      minimum: -9223372036854775808
+      maximum: 9223372036854775807
+      description: "Exact signed int64. Parse without binary64 precision loss."
+    Endpoint:
+      type: "string"
+      enum:
+        - "openai"
+        - "openai-response"
+        - "anthropic"
+        - "gemini"
+        - "image-generation"
+        - "embeddings"
+        - "jina-rerank"
+      description: "Frozen v1 endpoint-family vocabulary. Audio endpoint families are reserved for future versions."
+    Task:
+      type: "string"
+      enum:
+        - "chat"
+        - "image_generation"
+        - "image_edit"
+        - "embedding"
+        - "rerank"
+      description: "Desktop task names; endpoint families are a separate vocabulary."
+    Currency:
+      type: "string"
+      pattern: "^[A-Z]{3}$"
+      description: "Uppercase three-letter currency code; amounts use its minor units."
+    Operator:
+      type: "object"
+      required:
+        - "name"
+        - "homepage_url"
+        - "console_url"
+        - "purchase_url"
+        - "terms_url"
+        - "privacy_url"
+      properties:
+        name:
+          type: "string"
+          minLength: 1
+        homepage_url:
+          anyOf:
+            -
+              type: "string"
+              format: "uri"
+              pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+              description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+            -
+              type: "null"
+        console_url:
+          anyOf:
+            -
+              type: "string"
+              format: "uri"
+              pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+              description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+            -
+              type: "null"
+        purchase_url:
+          anyOf:
+            -
+              type: "string"
+              format: "uri"
+              pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+              description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+            -
+              type: "null"
+        terms_url:
+          anyOf:
+            -
+              type: "string"
+              format: "uri"
+              pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+              description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+            -
+              type: "null"
+        privacy_url:
+          anyOf:
+            -
+              type: "string"
+              format: "uri"
+              pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+              description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+            -
+              type: "null"
+      additionalProperties: true
+    Meta:
+      type: "object"
+      required:
+        - "contract_version"
+        - "operator"
+        - "capabilities"
+        - "optional_endpoints"
+      properties:
+        contract_version:
+          const: "1.0"
+          type: "string"
+        operator:
+          $ref: "#/components/schemas/Operator"
+        capabilities:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Endpoint"
+          uniqueItems: true
+        optional_endpoints:
+          type: "array"
+          items:
+            type: "string"
+            enum:
+              - "/v1/messages/count_tokens"
+          uniqueItems: true
+      additionalProperties: true
+    TaskEndpoints:
+      type: "object"
+      required:
+        - "endpoints"
+        - "preferred_endpoint"
+      properties:
+        endpoints:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Endpoint"
+          minItems: 1
+          uniqueItems: true
+        preferred_endpoint:
+          $ref: "#/components/schemas/Endpoint"
+      additionalProperties: true
+      allOf:
+        -
+          if:
+            properties:
+              preferred_endpoint:
+                const: "openai"
+          then:
+            properties:
+              endpoints:
+                contains:
+                  const: "openai"
+                minContains: 1
+        -
+          if:
+            properties:
+              preferred_endpoint:
+                const: "openai-response"
+          then:
+            properties:
+              endpoints:
+                contains:
+                  const: "openai-response"
+                minContains: 1
+        -
+          if:
+            properties:
+              preferred_endpoint:
+                const: "anthropic"
+          then:
+            properties:
+              endpoints:
+                contains:
+                  const: "anthropic"
+                minContains: 1
+        -
+          if:
+            properties:
+              preferred_endpoint:
+                const: "gemini"
+          then:
+            properties:
+              endpoints:
+                contains:
+                  const: "gemini"
+                minContains: 1
+        -
+          if:
+            properties:
+              preferred_endpoint:
+                const: "image-generation"
+          then:
+            properties:
+              endpoints:
+                contains:
+                  const: "image-generation"
+                minContains: 1
+        -
+          if:
+            properties:
+              preferred_endpoint:
+                const: "embeddings"
+          then:
+            properties:
+              endpoints:
+                contains:
+                  const: "embeddings"
+                minContains: 1
+        -
+          if:
+            properties:
+              preferred_endpoint:
+                const: "jina-rerank"
+          then:
+            properties:
+              endpoints:
+                contains:
+                  const: "jina-rerank"
+                minContains: 1
+      description: "Preferred endpoint must be recognized and present in endpoints; omission or unknown values abort the complete catalog import."
+    Price:
+      type: "object"
+      required:
+        - "task"
+        - "meter"
+        - "unit_size"
+        - "amount"
+        - "currency"
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        meter:
+          type: "string"
+          minLength: 1
+          description: "Explicit meter dimension. Missing price is unpriced, not free. Avoid overlapping reasoning/cache totals."
+        unit_size:
+          type: "integer"
+          minimum: 1
+          maximum: 9223372036854775807
+        amount:
+          type: "integer"
+          minimum: 0
+          maximum: 9223372036854775807
+          description: "Minor currency units per unit_size; 0 explicitly means free."
+        currency:
+          $ref: "#/components/schemas/Currency"
+      additionalProperties: true
+    Quota:
+      type: "object"
+      required:
+        - "unit"
+        - "total"
+        - "used"
+      properties:
+        unit:
+          type: "string"
+          minLength: 1
+        total:
+          type:
+            - "integer"
+            - "null"
+          minimum: 0
+          maximum: 9223372036854775807
+          description: "Null means unknown, undisclosed or inapplicable; never infer unlimited. Zero is an explicit zero cap."
+        used:
+          type: "integer"
+          minimum: 0
+          maximum: 9223372036854775807
+      additionalProperties: true
+    Plan:
+      type: "object"
+      required:
+        - "name"
+        - "period_start"
+        - "period_end"
+        - "quota"
+      properties:
+        name:
+          type: "string"
+          minLength: 1
+        period_start:
+          type:
+            - "string"
+            - "null"
+          format: "date-time"
+          pattern: "Z$"
+          description: "UTC RFC 3339 timestamp with Z suffix, or explicit null."
+        period_end:
+          type:
+            - "string"
+            - "null"
+          format: "date-time"
+          pattern: "Z$"
+          description: "UTC RFC 3339 timestamp with Z suffix, or explicit null."
+        quota:
+          $ref: "#/components/schemas/Quota"
+      additionalProperties: true
+    Balance:
+      type: "object"
+      required:
+        - "amount"
+        - "currency"
+      properties:
+        amount:
+          $ref: "#/components/schemas/Int64"
+          description: "Signed balance in minor currency units; negative balance is allowed."
+        currency:
+          $ref: "#/components/schemas/Currency"
+      additionalProperties: true
+    Key:
+      type: "object"
+      required:
+        - "name"
+        - "expires_at"
+        - "quota_unit"
+        - "remaining_quota"
+      properties:
+        name:
+          type: "string"
+          minLength: 1
+        expires_at:
+          type:
+            - "string"
+            - "null"
+          format: "date-time"
+          pattern: "Z$"
+          description: "Null means this key has no expiration. Account never returns plaintext or hashed credentials."
+        quota_unit:
+          type: "string"
+          minLength: 1
+        remaining_quota:
+          type:
+            - "integer"
+            - "null"
+          minimum: 0
+          maximum: 9223372036854775807
+          description: "Null is an unknown/undisclosed remaining amount, not unlimited."
+      additionalProperties: true
+    RateLimits:
+      type: "object"
+      required:
+        - "requests_per_minute"
+        - "tokens_per_minute"
+        - "concurrent_requests"
+      properties:
+        requests_per_minute:
+          type:
+            - "integer"
+            - "null"
+          minimum: 0
+          maximum: 9223372036854775807
+        tokens_per_minute:
+          type:
+            - "integer"
+            - "null"
+          minimum: 0
+          maximum: 9223372036854775807
+        concurrent_requests:
+          type:
+            - "integer"
+            - "null"
+          minimum: 0
+          maximum: 9223372036854775807
+      additionalProperties: true
+    Account:
+      type: "object"
+      required:
+        - "contract_version"
+        - "plan"
+        - "balance"
+        - "key"
+        - "rate_limits"
+      properties:
+        contract_version:
+          type: "string"
+          const: "1.0"
+        plan:
+          anyOf:
+            -
+              $ref: "#/components/schemas/Plan"
+            -
+              type: "null"
+          description: "Explicit null means no current plan metadata."
+        balance:
+          $ref: "#/components/schemas/Balance"
+        key:
+          $ref: "#/components/schemas/Key"
+        rate_limits:
+          $ref: "#/components/schemas/RateLimits"
+      additionalProperties: true
+    GatewayErrorCode:
+      type: "string"
+      enum:
+        - "insufficient_balance"
+        - "subscription_expired"
+        - "model_not_in_plan"
+        - "key_expired"
+        - "rate_limited"
+        - "invalid_api_key"
+        - "invalid_request_error"
+        - "invalid_previous_response_id"
+        - "not_found"
+        - "method_not_allowed"
+        - "request_too_large"
+        - "unsupported_media_type"
+        - "model_not_found"
+        - "unsupported_endpoint"
+        - "stream_unavailable"
+      description: "Gateway-generated error codes. Upstream native errors can have other codes and retain native structure."
+    RawSSE:
+      type: "string"
+      description: "Raw native SSE stream; do not normalize event names, data or terminal markers."
+    NativeBody:
+      type: "object"
+      additionalProperties: true
+      description: "Opaque native JSON object. This schema intentionally does not enumerate or validate all upstream native fields. Preserve unknown fields, thinking/signatures, cache details and tools."
+    ChatChunk:
+      $ref: "#/components/schemas/NativeBody"
+      description: "Opaque native OpenAI Chat SSE data object; [DONE] is a separate terminal marker."
+    ResponseEvent:
+      $ref: "#/components/schemas/NativeBody"
+      description: "Opaque native Responses SSE event object. Event name/order and completed/failed/incomplete behavior remain native."
+    AnthropicEvent:
+      $ref: "#/components/schemas/NativeBody"
+      description: "Opaque native Anthropic event object; preserve thinking/signature/tool deltas, ping and unknown events."
+    GeminiResponse:
+      $ref: "#/components/schemas/NativeBody"
+      description: "Opaque native Gemini generateContent response/SSE data object. Preserve part ordering and thought signatures even on empty text parts."
+    OpenAIGatewayError:
+      type: "object"
+      required:
+        - "error"
+      properties:
+        error:
+          type: "object"
+          required:
+            - "message"
+            - "type"
+            - "code"
+            - "purchase_url"
+          properties:
+            message:
+              type: "string"
+              minLength: 1
+            type:
+              type: "string"
+              minLength: 1
+            code:
+              $ref: "#/components/schemas/GatewayErrorCode"
+            purchase_url:
+              anyOf:
+                -
+                  type: "string"
+                  format: "uri"
+                  pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+                  description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+                -
+                  type: "null"
+          additionalProperties: true
+      additionalProperties: true
+    AnthropicGatewayError:
+      type: "object"
+      required:
+        - "type"
+        - "error"
+      properties:
+        type:
+          type: "string"
+          const: "error"
+        error:
+          type: "object"
+          required:
+            - "type"
+            - "message"
+            - "code"
+            - "purchase_url"
+          properties:
+            type:
+              type: "string"
+              minLength: 1
+            message:
+              type: "string"
+              minLength: 1
+            code:
+              $ref: "#/components/schemas/GatewayErrorCode"
+            purchase_url:
+              anyOf:
+                -
+                  type: "string"
+                  format: "uri"
+                  pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+                  description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+                -
+                  type: "null"
+          additionalProperties: true
+      additionalProperties: true
+    GoogleErrorInfo:
+      type: "object"
+      required:
+        - "@type"
+        - "reason"
+        - "domain"
+        - "metadata"
+      properties:
+        "@type":
+          type: "string"
+          const: "type.googleapis.com/google.rpc.ErrorInfo"
+        reason:
+          type: "string"
+          enum:
+            - "INSUFFICIENT_BALANCE"
+            - "SUBSCRIPTION_EXPIRED"
+            - "MODEL_NOT_IN_PLAN"
+            - "KEY_EXPIRED"
+            - "RATE_LIMITED"
+            - "INVALID_API_KEY"
+            - "INVALID_REQUEST_ERROR"
+            - "INVALID_PREVIOUS_RESPONSE_ID"
+            - "NOT_FOUND"
+            - "METHOD_NOT_ALLOWED"
+            - "REQUEST_TOO_LARGE"
+            - "UNSUPPORTED_MEDIA_TYPE"
+            - "MODEL_NOT_FOUND"
+            - "UNSUPPORTED_ENDPOINT"
+            - "STREAM_UNAVAILABLE"
+        domain:
+          type: "string"
+          const: "nomifun-model-gateway"
+        metadata:
+          type: "object"
+          required:
+            - "nomifun_code"
+          properties:
+            nomifun_code:
+              $ref: "#/components/schemas/GatewayErrorCode"
+            purchase_url:
+              type: "string"
+              format: "uri"
+              pattern: "^https://[^/?#@]+(?:[/?#].*)?$"
+              description: "Absolute HTTPS URL without authority credentials; must not carry API keys."
+          additionalProperties:
+            type: "string"
+      additionalProperties: true
+      allOf:
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "insufficient_balance"
+          then:
+            properties:
+              reason:
+                const: "INSUFFICIENT_BALANCE"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "subscription_expired"
+          then:
+            properties:
+              reason:
+                const: "SUBSCRIPTION_EXPIRED"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "model_not_in_plan"
+          then:
+            properties:
+              reason:
+                const: "MODEL_NOT_IN_PLAN"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "key_expired"
+          then:
+            properties:
+              reason:
+                const: "KEY_EXPIRED"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "rate_limited"
+          then:
+            properties:
+              reason:
+                const: "RATE_LIMITED"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "invalid_api_key"
+          then:
+            properties:
+              reason:
+                const: "INVALID_API_KEY"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "invalid_request_error"
+          then:
+            properties:
+              reason:
+                const: "INVALID_REQUEST_ERROR"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "invalid_previous_response_id"
+          then:
+            properties:
+              reason:
+                const: "INVALID_PREVIOUS_RESPONSE_ID"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "not_found"
+          then:
+            properties:
+              reason:
+                const: "NOT_FOUND"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "method_not_allowed"
+          then:
+            properties:
+              reason:
+                const: "METHOD_NOT_ALLOWED"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "request_too_large"
+          then:
+            properties:
+              reason:
+                const: "REQUEST_TOO_LARGE"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "unsupported_media_type"
+          then:
+            properties:
+              reason:
+                const: "UNSUPPORTED_MEDIA_TYPE"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "model_not_found"
+          then:
+            properties:
+              reason:
+                const: "MODEL_NOT_FOUND"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "unsupported_endpoint"
+          then:
+            properties:
+              reason:
+                const: "UNSUPPORTED_ENDPOINT"
+        -
+          if:
+            properties:
+              metadata:
+                properties:
+                  nomifun_code:
+                    const: "stream_unavailable"
+          then:
+            properties:
+              reason:
+                const: "STREAM_UNAVAILABLE"
+    GeminiGatewayError:
+      type: "object"
+      required:
+        - "error"
+      properties:
+        error:
+          type: "object"
+          required:
+            - "code"
+            - "message"
+            - "status"
+            - "details"
+          properties:
+            code:
+              type: "integer"
+              minimum: 400
+              maximum: 599
+              description: "Native integer HTTP status, never a business-code string."
+            message:
+              type: "string"
+              minLength: 1
+            status:
+              type: "string"
+              minLength: 1
+              description: "Native Google RPC status name."
+            details:
+              type: "array"
+              items:
+                $ref: "#/components/schemas/NativeBody"
+              minItems: 1
+              contains:
+                $ref: "#/components/schemas/GoogleErrorInfo"
+              minContains: 1
+          additionalProperties: true
+      additionalProperties: true
+    Model:
+      type: "object"
+      required:
+        - "id"
+        - "display_name"
+        - "vendor"
+        - "tasks"
+        - "task_endpoints"
+        - "context_window"
+        - "max_output_tokens"
+        - "input_modalities"
+        - "traits"
+        - "pricing"
+        - "included_in_plan"
+        - "status"
+      properties:
+        id:
+          type: "string"
+          minLength: 1
+        display_name:
+          type: "string"
+          minLength: 1
+        vendor:
+          type: "string"
+          minLength: 1
+        tasks:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Task"
+          minItems: 1
+          uniqueItems: true
+        task_endpoints:
+          type: "object"
+          minProperties: 1
+          propertyNames:
+            enum:
+              - "chat"
+              - "image_generation"
+              - "image_edit"
+              - "embedding"
+              - "rerank"
+          properties:
+            chat:
+              allOf:
+                -
+                  $ref: "#/components/schemas/TaskEndpoints"
+                -
+                  properties:
+                    endpoints:
+                      items:
+                        type: "string"
+                        enum:
+                          - "openai"
+                          - "openai-response"
+                          - "anthropic"
+                          - "gemini"
+                    preferred_endpoint:
+                      type: "string"
+                      enum:
+                        - "openai"
+                        - "openai-response"
+                        - "anthropic"
+                        - "gemini"
+            image_generation:
+              allOf:
+                -
+                  $ref: "#/components/schemas/TaskEndpoints"
+                -
+                  properties:
+                    endpoints:
+                      items:
+                        type: "string"
+                        enum:
+                          - "image-generation"
+                    preferred_endpoint:
+                      type: "string"
+                      enum:
+                        - "image-generation"
+            image_edit:
+              allOf:
+                -
+                  $ref: "#/components/schemas/TaskEndpoints"
+                -
+                  properties:
+                    endpoints:
+                      items:
+                        type: "string"
+                        enum:
+                          - "image-generation"
+                    preferred_endpoint:
+                      type: "string"
+                      enum:
+                        - "image-generation"
+            embedding:
+              allOf:
+                -
+                  $ref: "#/components/schemas/TaskEndpoints"
+                -
+                  properties:
+                    endpoints:
+                      items:
+                        type: "string"
+                        enum:
+                          - "embeddings"
+                    preferred_endpoint:
+                      type: "string"
+                      enum:
+                        - "embeddings"
+            rerank:
+              allOf:
+                -
+                  $ref: "#/components/schemas/TaskEndpoints"
+                -
+                  properties:
+                    endpoints:
+                      items:
+                        type: "string"
+                        enum:
+                          - "jina-rerank"
+                    preferred_endpoint:
+                      type: "string"
+                      enum:
+                        - "jina-rerank"
+          additionalProperties:
+            $ref: "#/components/schemas/TaskEndpoints"
+        context_window:
+          type:
+            - "integer"
+            - "null"
+          minimum: 1
+          maximum: 9223372036854775807
+          description: "Null means unknown or inapplicable."
+        max_output_tokens:
+          type:
+            - "integer"
+            - "null"
+          minimum: 1
+          maximum: 9223372036854775807
+          description: "Must be a positive int64 when any preferred endpoint is anthropic."
+        input_modalities:
+          type: "array"
+          items:
+            type: "string"
+            minLength: 1
+          uniqueItems: true
+        traits:
+          type: "array"
+          items:
+            type: "string"
+            minLength: 1
+          uniqueItems: true
+        pricing:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Price"
+        included_in_plan:
+          type: "boolean"
+        status:
+          type: "string"
+          enum:
+            - "available"
+            - "degraded"
+            - "unavailable"
+      additionalProperties: true
+      allOf:
+        -
+          if:
+            properties:
+              tasks:
+                contains:
+                  const: "chat"
+          then:
+            properties:
+              task_endpoints:
+                required:
+                  - "chat"
+        -
+          if:
+            properties:
+              task_endpoints:
+                required:
+                  - "chat"
+          then:
+            properties:
+              tasks:
+                contains:
+                  const: "chat"
+                minContains: 1
+        -
+          if:
+            properties:
+              tasks:
+                contains:
+                  const: "image_generation"
+          then:
+            properties:
+              task_endpoints:
+                required:
+                  - "image_generation"
+        -
+          if:
+            properties:
+              task_endpoints:
+                required:
+                  - "image_generation"
+          then:
+            properties:
+              tasks:
+                contains:
+                  const: "image_generation"
+                minContains: 1
+        -
+          if:
+            properties:
+              tasks:
+                contains:
+                  const: "image_edit"
+          then:
+            properties:
+              task_endpoints:
+                required:
+                  - "image_edit"
+        -
+          if:
+            properties:
+              task_endpoints:
+                required:
+                  - "image_edit"
+          then:
+            properties:
+              tasks:
+                contains:
+                  const: "image_edit"
+                minContains: 1
+        -
+          if:
+            properties:
+              tasks:
+                contains:
+                  const: "embedding"
+          then:
+            properties:
+              task_endpoints:
+                required:
+                  - "embedding"
+        -
+          if:
+            properties:
+              task_endpoints:
+                required:
+                  - "embedding"
+          then:
+            properties:
+              tasks:
+                contains:
+                  const: "embedding"
+                minContains: 1
+        -
+          if:
+            properties:
+              tasks:
+                contains:
+                  const: "rerank"
+          then:
+            properties:
+              task_endpoints:
+                required:
+                  - "rerank"
+        -
+          if:
+            properties:
+              task_endpoints:
+                required:
+                  - "rerank"
+          then:
+            properties:
+              tasks:
+                contains:
+                  const: "rerank"
+                minContains: 1
+        -
+          if:
+            properties:
+              task_endpoints:
+                required:
+                  - "chat"
+                properties:
+                  chat:
+                    required:
+                      - "preferred_endpoint"
+                    properties:
+                      preferred_endpoint:
+                        const: "anthropic"
+          then:
+            properties:
+              max_output_tokens:
+                type: "integer"
+                minimum: 1
+                maximum: 9223372036854775807
+      description: "Required v1 control-plane model. tasks and task_endpoints match exactly; prices reference advertised tasks, IDs are unique per catalog and meter/currency prices cannot duplicate. Cross-field currency/task and date ordering constraints also apply per protocol prose and conformance."
+    Catalog:
+      type: "object"
+      required:
+        - "contract_version"
+        - "models"
+      properties:
+        contract_version:
+          type: "string"
+          const: "1.0"
+        models:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Model"
+      additionalProperties: true

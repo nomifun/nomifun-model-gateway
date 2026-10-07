@@ -1,0 +1,77 @@
+{
+  "source": "User-provided local portal/codevisual",
+  "source_commit": null,
+  "snapshot_policy": "Source is not a Git repository. Original files are pinned by exact SHA-256; no source commit is invented.",
+  "authorization": "User confirmed ownership of original components and explicitly permitted Apache-2.0 transplantation on 2026-10-07.",
+  "excluded": [
+    "world-map-dots.ts and components importing it",
+    "plugin-slot.tsx",
+    "CodedVisuals commercial source and any restricted free examples"
+  ],
+  "components": [
+    {
+      "source": "src/components/visuals/stat-card.tsx",
+      "sha256": "4ff84284b8510281ed7d6c9ab78e2aae468bbf91d1b058fecaaa90e0865b5a29",
+      "target": "console/src/visuals/stat-card.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    },
+    {
+      "source": "src/components/visuals/usage-meter.tsx",
+      "sha256": "bc082b89caaabeccf4b785754d084f74be7a11c3ed00ef2d9add8b0de055ecc4",
+      "target": "console/src/visuals/usage-meter.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    },
+    {
+      "source": "src/components/visuals/state-empty.tsx",
+      "sha256": "c87b8c67e90557959c29c0dcab8c8c3ff3bc1f4e74f5acd2368660600419fd3e",
+      "target": "console/src/visuals/state-empty.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    },
+    {
+      "source": "src/components/visuals/state-error.tsx",
+      "sha256": "af50c605b1d36569a31f7dc910ef08cf344fafd6b639d8d600a382c61f5cd814",
+      "target": "console/src/visuals/state-error.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    },
+    {
+      "source": "src/components/visuals/toast.tsx",
+      "sha256": "2c65a006bdd9cd1910136761175d0e21b799c4232b4a35fb9529983856378686",
+      "target": "console/src/visuals/toast.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    },
+    {
+      "source": "src/components/visuals/filters.tsx",
+      "sha256": "d4798d3ecf7924a069fdd550139f21410ed27ba2469d5cfd45661a3594295890",
+      "target": "console/src/visuals/filters.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    },
+    {
+      "source": "src/components/visuals/command-palette.tsx",
+      "sha256": "cbe5d78a70768fad6b282fdbc210966542a8b3303295524da5546294a47bd666",
+      "target": "console/src/visuals/command-palette.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    },
+    {
+      "source": "src/components/visuals/health-check.tsx",
+      "sha256": "b99ba9572189d7ef0008201531e976a3fc6297becb346b5fdc210f48f1edf836",
+      "target": "console/src/visuals/configuration-checklist.tsx",
+      "license": "Apache-2.0",
+      "authorization": "Copyright owner explicitly authorized transplantation and Apache-2.0 distribution on 2026-10-07",
+      "source_commit": null
+    }
+  ]
+}

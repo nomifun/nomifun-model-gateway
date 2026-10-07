@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# Stable source and embedded-asset line endings across Windows and Linux.
+* text=auto eol=lf
+
+# Keep upstream license formatting verbatim in the generated aggregate notice.
+# Only end-of-line blanks are accepted here; code whitespace checks stay enabled.
+internal/console/assets/THIRD_PARTY_LICENSES.txt whitespace=-blank-at-eol

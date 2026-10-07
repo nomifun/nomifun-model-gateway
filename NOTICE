@@ -1,0 +1,32 @@
+NomiFun Model Gateway
+Copyright 2026 NomiFun Model Gateway contributors
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+The protocol, mock gateway, conformance implementation, production gateway,
+and repository tools are original implementations. No source code has been copied from
+new-api, one-api, Bifrost, one-hub, done-hub or sub2api.
+
+External Go dependencies are identified through go.mod, go.sum and the
+go-licenses check, including dependencies used by tests. Frontend versions are
+pinned in console/package-lock.json. Their respective license terms remain
+applicable; Docker distributions retain Go license documents and frontend
+publisher notices under /licenses.
+
+When incorporating permissively licensed source in a future change, retain its
+copyright and license notices and record the source repository, exact commit,
+source file, license identifier and modifications here or in the file header.
+Preserve and distribute any upstream NOTICE required by that license.
+
+The console incorporates selected user-owned codevisual UI components under
+the copyright owner's explicit Apache-2.0 authorization on 2026-10-07.
+The local source has no Git commit; exact file SHA-256 snapshots and adaptation
+details are retained in licenses/codevisual/provenance.json, source headers,
+and console/notices/codevisual.txt. The latter is included in the embedded
+console's THIRD_PARTY_LICENSES.txt. No commercial CodedVisuals source or
+extracted map/face assets are incorporated.
+
+NomiFun provides open-source software and an open protocol. NomiFun does not
+operate a gateway instance or sell API access. Community partners independently
+operate their gateway services and are responsible for their service terms,
+pricing, subscriptions and operational obligations.

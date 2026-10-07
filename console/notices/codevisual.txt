@@ -1,0 +1,39 @@
+User-owned codevisual component adaptations
+License: Apache License, Version 2.0. The full text is distributed as the
+project LICENSE and licenses/codevisual/LICENSE.
+
+On 2026-10-07 the user explicitly confirmed ownership of the original
+codevisual components and authorized transplantation and Apache-2.0
+distribution within NomiFun Model Gateway.
+
+The provided local portal/codevisual source has no Git repository or source
+commit. Original source files are pinned by SHA-256, recorded below and in
+licenses/codevisual/provenance.json. This records a local source snapshot;
+it does not claim commit-level pinning.
+
+stat-card.tsx
+4ff84284b8510281ed7d6c9ab78e2aae468bbf91d1b058fecaaa90e0865b5a29
+usage-meter.tsx
+bc082b89caaabeccf4b785754d084f74be7a11c3ed00ef2d9add8b0de055ecc4
+state-empty.tsx
+c87b8c67e90557959c29c0dcab8c8c3ff3bc1f4e74f5acd2368660600419fd3e
+state-error.tsx
+af50c605b1d36569a31f7dc910ef08cf344fafd6b639d8d600a382c61f5cd814
+toast.tsx
+2c65a006bdd9cd1910136761175d0e21b799c4232b4a35fb9529983856378686
+filters.tsx
+d4798d3ecf7924a069fdd550139f21410ed27ba2469d5cfd45661a3594295890
+command-palette.tsx
+cbe5d78a70768fad6b282fdbc210966542a8b3303295524da5546294a47bd666
+health-check.tsx (adapted as configuration-checklist.tsx)
+b99ba9572189d7ef0008201531e976a3fc6297becb346b5fdc210f48f1edf836
+
+Modifications: connect live account/model/filter/credential data and actions;
+replace fixed demo dimensions with responsive semantic CSS; remove sample
+data, simulated health/latency, fake trends, aria-hidden business content,
+isometric transformations and looping/fade-out animations. Keep single
+entrance animations and respect reduced-motion preferences. Add accessible
+state content, real input handling, keyboard selection and focus management.
+
+No CodedVisuals commercial source, extracted map/face assets, branding or
+restricted free example code is incorporated.

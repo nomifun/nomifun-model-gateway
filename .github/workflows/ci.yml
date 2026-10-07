@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go and license checks (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24.18.0'
+          package-manager-cache: false
+      - name: Install locked console dependencies
+        working-directory: console
+        run: npm ci --ignore-scripts
+      - name: Console checks and embedded build
+        working-directory: console
+        run: npm run build
+      - name: Console tests
+        working-directory: console
+        run: npm test
+      - name: Verify tracked embedded console is reproducible
+        shell: bash
+        run: |
+          git diff --exit-code -- internal/console/assets
+          if [ -n "$(git ls-files --others --exclude-standard -- internal/console/assets)" ]; then
+            printf '%s\n' 'Console build produced untracked embedded assets; include the complete build in the reviewed change.' >&2
+            exit 1
+          fi
+      - name: Test
+        run: go test ./...
+      - name: Race check (Linux)
+        if: runner.os == 'Linux'
+        run: go test -race ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build ./...
+      - name: Frontend license gate regression checks
+        run: node --test scripts/check-frontend-licenses.test.mjs
+      - name: License checks (Linux)
+        if: runner.os == 'Linux'
+        run: bash scripts/check-licenses.sh
+      - name: License checks (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/check-licenses.ps1

@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+# Independent SQLite single-process deployment. Do not merge with compose.yaml.
+name: nomifun-model-gateway-sqlite
+services:
+  gateway:
+    build: .
+    image: nomifun-model-gateway:local
+    restart: unless-stopped
+    environment:
+      NMG_LISTEN: 0.0.0.0:8789
+      NMG_DB_DRIVER: sqlite
+      NMG_DB_DSN: /data/gateway.db
+      NMG_MASTER_KEY: ${NMG_MASTER_KEY:?Set a random 32-byte base64 NMG_MASTER_KEY}
+      NMG_ADMIN_EMAIL: ${NMG_ADMIN_EMAIL:-}
+      NMG_ADMIN_PASSWORD: ${NMG_ADMIN_PASSWORD:-}
+    ports:
+      - 127.0.0.1:${NMG_PORT:-8789}:8789
+    volumes:
+      # Initial named-volume ownership is copied from image /data (UID/GID10001).
+      - sqlite-data:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=0700
+    stop_grace_period: 30s
+volumes:
+  sqlite-data:
