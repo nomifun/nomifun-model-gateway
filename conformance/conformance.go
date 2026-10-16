@@ -93,11 +93,7 @@ type response struct {
 }
 
 func knownEndpoint(s string) bool {
-	switch s {
-	case "openai", "openai-response", "anthropic", "gemini", "image-generation", "embeddings", "jina-rerank":
-		return true
-	}
-	return false
+	return v1.KnownEndpoint(v1.Endpoint(s))
 }
 
 // Run returns a result for every assertion and explicit SKIPs for fixture cases
@@ -534,6 +530,11 @@ func (r *runner) control(ctx context.Context) {
 			}
 			return item.validate(res.body)
 		})
+		if item.name == "meta" && e == nil && res.status == 200 && validateMeta(res.body) == nil {
+			var meta v1.Meta
+			_ = json.Unmarshal(res.body, &meta)
+			r.protocolManifest(ctx, meta)
+		}
 	}
 	r.check("auth/meta/query-key", func() error {
 		res, e := r.call(ctx, probe{path: "/nomifun/v1/meta"}, r.cfg.APIKey, "query", nil, false)

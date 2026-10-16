@@ -5,7 +5,7 @@ func ptr[T any](v T) *T { return &v }
 
 // MockMeta returns fictional operator data, never an official hosted service.
 func MockMeta() Meta {
-	return Meta{Version, Operator{"Example Community Operator (Mock)", ptr("https://operator.example/"), ptr("https://operator.example/console"), ptr("https://operator.example/purchase"), ptr("https://operator.example/terms"), ptr("https://operator.example/privacy")}, []Endpoint{OpenAI, Responses, Anthropic, Gemini, Images, Embeddings, Rerank}, []string{"/v1/messages/count_tokens"}}
+	return Meta{ContractVersion: Version, Operator: Operator{"Example Community Operator (Mock)", ptr("https://operator.example/"), ptr("https://operator.example/console"), ptr("https://operator.example/purchase"), ptr("https://operator.example/terms"), ptr("https://operator.example/privacy")}, Capabilities: Endpoints(), OptionalEndpoints: []string{"/v1/messages/count_tokens"}, ProtocolManifest: "/nomifun/v1/protocols"}
 }
 
 func MockCatalog(limited bool) Catalog {

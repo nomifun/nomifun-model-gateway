@@ -34,23 +34,19 @@ func ValidateModel(m v1.Model) error {
 	if m.ContextWindow != nil && *m.ContextWindow <= 0 || m.MaxOutputTokens != nil && *m.MaxOutputTokens <= 0 {
 		return errors.New("token ceilings must be positive when provided")
 	}
-	allowed := map[v1.Task]map[v1.Endpoint]bool{
-		v1.Chat:            {v1.OpenAI: true, v1.Responses: true, v1.Anthropic: true, v1.Gemini: true},
-		v1.ImageGeneration: {v1.Images: true}, v1.ImageEdit: {v1.Images: true}, v1.Embedding: {v1.Embeddings: true}, v1.Reranking: {v1.Rerank: true},
-	}
 	seenTasks := map[v1.Task]bool{}
 	for _, task := range m.Tasks {
-		if allowed[task] == nil || seenTasks[task] {
+		if seenTasks[task] {
 			return errors.New("unknown or duplicate model task")
 		}
 		seenTasks[task] = true
 		route, ok := m.TaskEndpoints[task]
-		if !ok || len(route.Endpoints) == 0 || !allowed[task][route.PreferredEndpoint] {
+		if !ok || len(route.Endpoints) == 0 || !v1.SupportsTaskEndpoint(task, route.PreferredEndpoint) {
 			return errors.New("task requires a recognized preferred endpoint")
 		}
 		seenEndpoints := map[v1.Endpoint]bool{}
 		for _, endpoint := range route.Endpoints {
-			if !allowed[task][endpoint] || seenEndpoints[endpoint] {
+			if !v1.SupportsTaskEndpoint(task, endpoint) || seenEndpoints[endpoint] {
 				return errors.New("unknown or duplicate task endpoint")
 			}
 			seenEndpoints[endpoint] = true
@@ -81,8 +77,24 @@ func ValidateModel(m v1.Model) error {
 	return nil
 }
 
+// ValidateDesktopModel applies the producer policy to new or edited definitions.
+// Frozen v1 int64 records stay readable so operators can correct historical
+// limits through the console; reads never round or silently truncate them.
+func ValidateDesktopModel(m v1.Model) error {
+	if err := ValidateModel(m); err != nil {
+		return err
+	}
+	if m.ContextWindow != nil && *m.ContextWindow > v1.MaxTokenLimit {
+		return errors.New("context_window must be a safe integer no greater than 9007199254740991")
+	}
+	if m.MaxOutputTokens != nil && *m.MaxOutputTokens > v1.MaxTokenLimit {
+		return errors.New("max_output_tokens must be a safe integer no greater than 9007199254740991")
+	}
+	return nil
+}
+
 func (s *Store) SaveModel(ctx context.Context, definition v1.Model, enabled bool) error {
-	if err := ValidateModel(definition); err != nil {
+	if err := ValidateDesktopModel(definition); err != nil {
 		return err
 	}
 	b, err := json.Marshal(definition)
@@ -96,7 +108,7 @@ func (s *Store) SaveModel(ctx context.Context, definition v1.Model, enabled bool
 // SaveModelAccess updates the wire definition and durable admission policy
 // together. IncludedInPlan is computed per account at catalog read time.
 func (s *Store) SaveModelAccess(ctx context.Context, definition v1.Model, enabled, subscriptionOnly bool) error {
-	if err := ValidateModel(definition); err != nil {
+	if err := ValidateDesktopModel(definition); err != nil {
 		return err
 	}
 	definition.IncludedInPlan = false

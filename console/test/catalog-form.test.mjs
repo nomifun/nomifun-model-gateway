@@ -29,17 +29,24 @@ test('task endpoint choices retain the frozen native protocol names', () => {
   });
 });
 
-test('model draft preserves exact int64 prices and limits through transport', () => {
-  const input = model({ context_window: '9007199254740993', max_output_tokens: '4096', pricing: [price({ amount: '9223372036854775807', unit_size: '9007199254740993' })] });
+test('model draft uses safe token limits while preserving exact int64 billing through transport', () => {
+  const input = model({ context_window: '9007199254740991', max_output_tokens: '4096', pricing: [price({ amount: '9223372036854775807', unit_size: '9007199254740993' })] });
   const result = normalizeModelDraft(input);
   assert.deepEqual(result.issues, []);
-  assert.equal(result.value.context_window, 9007199254740993n);
+  assert.equal(result.value.context_window, 9007199254740991n);
   assert.equal(result.value.max_output_tokens, 4096n);
   assert.equal(result.value.pricing[0].amount, 9223372036854775807n);
   assert.equal(result.value.pricing[0].unit_size, 9007199254740993n);
   const transported = exactJSON.parse(exactJSON.stringify(result.value));
   assert.equal(transported.pricing[0].amount, 9223372036854775807n);
   assert.equal(input.pricing[0].amount, '9223372036854775807');
+});
+
+test('token limits reject values beyond Desktop safe integer semantics, including exact bigint input', () => {
+  for (const field of ['context_window', 'max_output_tokens']) {
+    for (const value of ['9007199254740992', 9007199254740992n, 9007199254740992, '9223372036854775807']) hasIssue(normalizeModelDraft(model({ [field]: value })), field, 'integer_range');
+    for (const value of [1, 1n, '9007199254740991']) assert.deepEqual(normalizeModelDraft(model({ [field]: value })).issues, []);
+  }
 });
 
 test('explicit zero price is valid while an omitted amount remains unconfigured', () => {

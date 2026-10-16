@@ -68,6 +68,48 @@ paths:
           $ref: "#/components/responses/ControlFailure"
         "501":
           $ref: "#/components/responses/ControlFailure"
+  "/nomifun/v1/protocols":
+    get:
+      operationId: "getProtocolManifest"
+      tags:
+        - "Control plane"
+      summary: "Read anonymous protocol manifest when advertised by instance metadata"
+      description: "Additive discovery extension announced by meta.protocol_manifest. Describes only instance-enabled v1 interfaces, exact Desktop connection conventions and producer limits. It does not prove upstream model support, health, tool calling or billing acceptance. Implementations without this extension retain the frozen v1 core."
+      security: []
+      responses:
+        "200":
+          description: "Implemented protocol descriptors filtered by the instance capabilities, with explicit unsupported task boundaries."
+          headers:
+            x-request-id:
+              $ref: "#/components/headers/RequestID"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/ProtocolManifest"
+        "400":
+          $ref: "#/components/responses/ControlFailure"
+        "401":
+          $ref: "#/components/responses/ControlFailure"
+        "402":
+          $ref: "#/components/responses/ControlFailure"
+        "403":
+          $ref: "#/components/responses/ControlFailure"
+        "404":
+          $ref: "#/components/responses/ControlFailure"
+        "405":
+          $ref: "#/components/responses/ControlFailure"
+        "413":
+          $ref: "#/components/responses/ControlFailure"
+        "415":
+          $ref: "#/components/responses/ControlFailure"
+        "429":
+          $ref: "#/components/responses/ControlRateLimited"
+        "500":
+          $ref: "#/components/responses/ControlFailure"
+        "501":
+          $ref: "#/components/responses/ControlFailure"
   "/nomifun/v1/catalog":
     get:
       operationId: "getCatalog"
@@ -1099,7 +1141,443 @@ components:
             enum:
               - "/v1/messages/count_tokens"
           uniqueItems: true
+        protocol_manifest:
+          type: "string"
+          const: "/nomifun/v1/protocols"
+          description: "Optional additive anonymous discovery extension. Absent on an older implementation; never an invocation URL or an entry in optional_endpoints."
       additionalProperties: true
+    ProtocolManifest:
+      type: "object"
+      description: "Optional versioned discovery surface for the implemented gateway software. Protocols are filtered by instance capabilities; unsupported_tasks lists software gaps, not merely instance-disabled protocols. Catalog traits are advisory and cannot grant generation tasks or disable native protocol features. Monetary and frozen catalog fields retain their original int64 semantics."
+      required: ["contract_version", "manifest_version", "protocols", "unsupported_tasks", "catalog_traits", "technical_capabilities", "traits_are_advisory", "max_token_limit"]
+      properties:
+        contract_version:
+          type: "string"
+          const: "1.0"
+        manifest_version:
+          type: "string"
+          const: "1"
+        protocols:
+          type: "array"
+          maxItems: 7
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/ProtocolDescriptor"
+        unsupported_tasks:
+          type: "array"
+          minItems: 5
+          maxItems: 5
+          uniqueItems: true
+          items:
+            type: "string"
+            enum: ["realtime_conversation", "video_generation", "music_generation", "speech_synthesis", "speech_recognition"]
+        catalog_traits:
+          type: "array"
+          minItems: 4
+          maxItems: 4
+          uniqueItems: true
+          items:
+            type: "string"
+            enum: ["vision_input", "audio_input", "video_input", "web_search"]
+        technical_capabilities:
+          type: "array"
+          minItems: 3
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: "string"
+            enum: ["function_calling", "reasoning", "streaming"]
+        traits_are_advisory:
+          type: "boolean"
+          const: true
+        max_token_limit:
+          type: "integer"
+          const: 9007199254740991
+          description: "Desktop-compatible producer policy for token ceilings; this additive manifest does not narrow the frozen Catalog schema's positive int64 range."
+      additionalProperties: true
+    ProtocolEndpointDescriptor:
+      type: "object"
+      required: ["task", "field", "purpose", "method", "default_value", "root_shape"]
+      properties:
+        task:
+          $ref: "#/components/schemas/Task"
+        field:
+          type: "string"
+          const: "endpoint"
+        purpose:
+          type: "string"
+          enum: ["submit", "stream"]
+        method:
+          type: "string"
+          const: "POST"
+        default_value:
+          type: "string"
+          pattern: "^/"
+          description: "Native endpoint template paired with root_shape and base_url_suffix. Model placeholders are encoded as one path component by clients."
+        root_shape:
+          type: "string"
+          enum: ["versioned_root", "origin_root"]
+      additionalProperties: true
+    ProtocolDescriptor:
+      type: "object"
+      description: "Exact supported task, native endpoint family and Desktop connection convention. Chat output ceilings and streamed Chat usage are metered-gateway requirements. Existence of a serializer or endpoint is not evidence of model compatibility."
+      required: ["protocol_id", "endpoint", "supported_tasks", "executor", "transport", "connection_role", "auth_scheme", "root_shape", "base_url_suffix", "requires_output_ceiling", "requires_stream_usage", "endpoints"]
+      properties:
+        protocol_id:
+          type: "string"
+          enum: ["openai.chat_text", "openai.responses", "anthropic.messages", "gemini.generate_text", "openai.images", "openai.embeddings", "generic.rerank"]
+        endpoint:
+          $ref: "#/components/schemas/Endpoint"
+        supported_tasks:
+          type: "array"
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/Task"
+        executor:
+          type: "string"
+          enum: ["agent", "model_invoke"]
+        transport:
+          type: "string"
+          const: "http"
+        connection_role:
+          type: "string"
+          enum: ["default", "anthropic", "gemini"]
+        auth_scheme:
+          type: "string"
+          enum: ["bearer", "header_key:x-api-key", "header_key:x-goog-api-key"]
+        root_shape:
+          type: "string"
+          enum: ["versioned_root", "origin_root"]
+        base_url_suffix:
+          type: "string"
+          enum: ["", "/v1"]
+        requires_output_ceiling:
+          type: "boolean"
+        requires_stream_usage:
+          type: "boolean"
+          description: "When true, metered streaming rejects explicit stream_options null or include_usage false instead of overriding the client's value."
+        endpoints:
+          type: "array"
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/ProtocolEndpointDescriptor"
+      additionalProperties: true
+      oneOf:
+        - properties:
+            endpoint:
+              const: "openai"
+            protocol_id:
+              const: "openai.chat_text"
+            supported_tasks:
+              const: ["chat"]
+            executor:
+              const: "agent"
+            connection_role:
+              const: "default"
+            auth_scheme:
+              const: "bearer"
+            root_shape:
+              const: "versioned_root"
+            base_url_suffix:
+              const: "/v1"
+            requires_output_ceiling:
+              const: true
+            requires_stream_usage:
+              const: true
+            endpoints:
+              minItems: 1
+              maxItems: 1
+              items:
+                anyOf:
+                  - properties:
+                      task:
+                        const: "chat"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/chat/completions"
+                      root_shape:
+                        const: "versioned_root"
+        - properties:
+            endpoint:
+              const: "openai-response"
+            protocol_id:
+              const: "openai.responses"
+            supported_tasks:
+              const: ["chat"]
+            executor:
+              const: "agent"
+            connection_role:
+              const: "default"
+            auth_scheme:
+              const: "bearer"
+            root_shape:
+              const: "versioned_root"
+            base_url_suffix:
+              const: "/v1"
+            requires_output_ceiling:
+              const: true
+            requires_stream_usage:
+              const: false
+            endpoints:
+              minItems: 1
+              maxItems: 1
+              items:
+                anyOf:
+                  - properties:
+                      task:
+                        const: "chat"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/responses"
+                      root_shape:
+                        const: "versioned_root"
+        - properties:
+            endpoint:
+              const: "anthropic"
+            protocol_id:
+              const: "anthropic.messages"
+            supported_tasks:
+              const: ["chat"]
+            executor:
+              const: "agent"
+            connection_role:
+              const: "anthropic"
+            auth_scheme:
+              const: "header_key:x-api-key"
+            root_shape:
+              const: "origin_root"
+            base_url_suffix:
+              const: ""
+            requires_output_ceiling:
+              const: true
+            requires_stream_usage:
+              const: false
+            endpoints:
+              minItems: 1
+              maxItems: 1
+              items:
+                anyOf:
+                  - properties:
+                      task:
+                        const: "chat"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/v1/messages"
+                      root_shape:
+                        const: "origin_root"
+        - properties:
+            endpoint:
+              const: "gemini"
+            protocol_id:
+              const: "gemini.generate_text"
+            supported_tasks:
+              const: ["chat"]
+            executor:
+              const: "agent"
+            connection_role:
+              const: "gemini"
+            auth_scheme:
+              const: "header_key:x-goog-api-key"
+            root_shape:
+              const: "origin_root"
+            base_url_suffix:
+              const: ""
+            requires_output_ceiling:
+              const: true
+            requires_stream_usage:
+              const: false
+            endpoints:
+              minItems: 2
+              maxItems: 2
+              items:
+                anyOf:
+                  - properties:
+                      task:
+                        const: "chat"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/v1beta/models/{model}:generateContent"
+                      root_shape:
+                        const: "origin_root"
+                  - properties:
+                      task:
+                        const: "chat"
+                      purpose:
+                        const: "stream"
+                      default_value:
+                        const: "/v1beta/models/{model}:streamGenerateContent"
+                      root_shape:
+                        const: "origin_root"
+              allOf:
+                - contains:
+                    properties:
+                      task:
+                        const: "chat"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/v1beta/models/{model}:generateContent"
+                      root_shape:
+                        const: "origin_root"
+                  minContains: 1
+                  maxContains: 1
+                - contains:
+                    properties:
+                      task:
+                        const: "chat"
+                      purpose:
+                        const: "stream"
+                      default_value:
+                        const: "/v1beta/models/{model}:streamGenerateContent"
+                      root_shape:
+                        const: "origin_root"
+                  minContains: 1
+                  maxContains: 1
+        - properties:
+            endpoint:
+              const: "image-generation"
+            protocol_id:
+              const: "openai.images"
+            supported_tasks:
+              const: ["image_generation","image_edit"]
+            executor:
+              const: "model_invoke"
+            connection_role:
+              const: "default"
+            auth_scheme:
+              const: "bearer"
+            root_shape:
+              const: "versioned_root"
+            base_url_suffix:
+              const: "/v1"
+            requires_output_ceiling:
+              const: false
+            requires_stream_usage:
+              const: false
+            endpoints:
+              minItems: 2
+              maxItems: 2
+              items:
+                anyOf:
+                  - properties:
+                      task:
+                        const: "image_generation"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/images/generations"
+                      root_shape:
+                        const: "versioned_root"
+                  - properties:
+                      task:
+                        const: "image_edit"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/images/edits"
+                      root_shape:
+                        const: "versioned_root"
+              allOf:
+                - contains:
+                    properties:
+                      task:
+                        const: "image_generation"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/images/generations"
+                      root_shape:
+                        const: "versioned_root"
+                  minContains: 1
+                  maxContains: 1
+                - contains:
+                    properties:
+                      task:
+                        const: "image_edit"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/images/edits"
+                      root_shape:
+                        const: "versioned_root"
+                  minContains: 1
+                  maxContains: 1
+        - properties:
+            endpoint:
+              const: "embeddings"
+            protocol_id:
+              const: "openai.embeddings"
+            supported_tasks:
+              const: ["embedding"]
+            executor:
+              const: "model_invoke"
+            connection_role:
+              const: "default"
+            auth_scheme:
+              const: "bearer"
+            root_shape:
+              const: "versioned_root"
+            base_url_suffix:
+              const: "/v1"
+            requires_output_ceiling:
+              const: false
+            requires_stream_usage:
+              const: false
+            endpoints:
+              minItems: 1
+              maxItems: 1
+              items:
+                anyOf:
+                  - properties:
+                      task:
+                        const: "embedding"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/embeddings"
+                      root_shape:
+                        const: "versioned_root"
+        - properties:
+            endpoint:
+              const: "jina-rerank"
+            protocol_id:
+              const: "generic.rerank"
+            supported_tasks:
+              const: ["rerank"]
+            executor:
+              const: "model_invoke"
+            connection_role:
+              const: "default"
+            auth_scheme:
+              const: "bearer"
+            root_shape:
+              const: "versioned_root"
+            base_url_suffix:
+              const: "/v1"
+            requires_output_ceiling:
+              const: false
+            requires_stream_usage:
+              const: false
+            endpoints:
+              minItems: 1
+              maxItems: 1
+              items:
+                anyOf:
+                  - properties:
+                      task:
+                        const: "rerank"
+                      purpose:
+                        const: "submit"
+                      default_value:
+                        const: "/rerank"
+                      root_shape:
+                        const: "versioned_root"
     TaskEndpoints:
       type: "object"
       required:

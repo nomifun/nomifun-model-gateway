@@ -29,6 +29,7 @@ NomiFun 提供独立的 Apache-2.0 网关项目，社区伙伴自行运营实例
 | [OpenAPI](../openapi.yaml) | 可供工具读取的公开 API 合同 |
 | [伙伴接入指南](partners/integration.md) | 运营方与客户端边界、Desktop 运行时接入、不含凭据的接入链接 |
 | [供应商录入与 Desktop 交接](partners/provider-onboarding-desktop-handoff.md) | 本地合成 fixture 操作、供应商录入证据及 Desktop 待验收项 |
+| [Desktop 模型管理对齐](partners/desktop-model-management-alignment.md) | 协议清单、目录建议元数据、原生流边界与当前兼容限制 |
 
 客户端应依赖公开协议，而不是控制台内部 `/api/console/v1` 会话 API 或 Mock 的合成实现
 细节。原生调用必须使用所选公开模型声明支持的任务与端点。

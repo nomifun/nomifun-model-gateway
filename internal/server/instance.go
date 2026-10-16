@@ -26,7 +26,7 @@ type InstanceSettings struct {
 }
 
 func defaultSettings() InstanceSettings {
-	return InstanceSettings{Operator: v1.Operator{Name: "Unconfigured Community Operator"}, Capabilities: []v1.Endpoint{v1.OpenAI, v1.Responses, v1.Anthropic, v1.Gemini, v1.Images, v1.Embeddings, v1.Rerank}, OptionalEndpoints: []string{}, Currency: "USD"}
+	return InstanceSettings{Operator: v1.Operator{Name: "Unconfigured Community Operator"}, Capabilities: v1.Endpoints(), OptionalEndpoints: []string{}, Currency: "USD"}
 }
 func validateSettings(settings InstanceSettings) error {
 	if strings.TrimSpace(settings.Operator.Name) == "" || len(settings.Operator.Name) > 200 {
@@ -47,10 +47,9 @@ func validateSettings(settings InstanceSettings) error {
 	if settings.Capabilities == nil || settings.OptionalEndpoints == nil {
 		return errors.New("capabilities and optional endpoints must be arrays")
 	}
-	known := map[v1.Endpoint]bool{v1.OpenAI: true, v1.Responses: true, v1.Anthropic: true, v1.Gemini: true, v1.Images: true, v1.Embeddings: true, v1.Rerank: true}
 	seen := map[v1.Endpoint]bool{}
 	for _, endpoint := range settings.Capabilities {
-		if !known[endpoint] || seen[endpoint] {
+		if !v1.KnownEndpoint(endpoint) || seen[endpoint] {
 			return errors.New("invalid or duplicate capability")
 		}
 		seen[endpoint] = true
@@ -83,7 +82,14 @@ func (s *Server) instance(ctx context.Context) (InstanceSettings, error) {
 	return settings, nil
 }
 func (settings InstanceSettings) meta() v1.Meta {
-	return v1.Meta{ContractVersion: v1.Version, Operator: settings.Operator, Capabilities: settings.Capabilities, OptionalEndpoints: settings.OptionalEndpoints}
+	return v1.Meta{ContractVersion: v1.Version, Operator: settings.Operator, Capabilities: settings.Capabilities, OptionalEndpoints: settings.OptionalEndpoints, ProtocolManifest: "/nomifun/v1/protocols"}
+}
+func (s *Server) protocols(c *gin.Context) {
+	settings, err := s.instance(c.Request.Context())
+	if s.databaseError(c, err) {
+		return
+	}
+	c.JSON(200, v1.Manifest(settings.Capabilities))
 }
 func (s *Server) meta(c *gin.Context) {
 	settings, err := s.instance(c.Request.Context())

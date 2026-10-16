@@ -12,6 +12,9 @@ export const TASK_ENDPOINTS: Record<string, string[]> = {
 export const ENDPOINTS = [...new Set(Object.values(TASK_ENDPOINTS).flat())];
 export const PRICE_METERS = ['requests', 'input_tokens', 'output_tokens', 'cached_input_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens', 'reasoning_tokens', 'images'];
 export const CHANNEL_KINDS = ['openai', 'anthropic', 'gemini', 'compatible', 'azure'];
+export const CHAT_ADVISORY_TRAITS = ['vision_input', 'audio_input', 'video_input', 'web_search'];
+export const LEGACY_CHAT_TRAITS = ['function_calling', 'reasoning', 'streaming', 'realtime', 'audio_output'];
+export const MAX_TOKEN_LIMIT = 9007199254740991n;
 export function record(value: unknown): Row { return value && typeof value === 'object' && !Array.isArray(value) ? value as Row : {}; }
 export function stringList(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(String);
@@ -44,7 +47,7 @@ function normalizeInteger(value: unknown, path: string, issues: CatalogIssue[], 
   catch (error) { issues.push({ path, code: error instanceof Error ? error.message : 'integer_required' }); return value; }
 }
 
-// Strings from visible numeric inputs become exact native int64 JSON numbers only at submission.
+// Token limits use Desktop's positive safe-integer range; billing values remain exact int64.
 // Unknown fields survive visual edits, including metadata added through the advanced JSON editor.
 export function normalizeModelDraft(input: Row): { value: Row; issues: CatalogIssue[] } {
   const value = cleanDraft(input); const issues: CatalogIssue[] = [];
@@ -68,8 +71,8 @@ export function normalizeModelDraft(input: Row): { value: Row; issues: CatalogIs
   for (const task of Object.keys(routes)) if (!tasks.includes(task)) issues.push({ path: `task_endpoints.${task}`, code: 'taskNotSelected' });
   // Retain mismatched routes so correcting a task selection never destroys existing configuration.
   value.task_endpoints = { ...routes, ...normalizedRoutes };
-  value.context_window = normalizeInteger(value.context_window, 'context_window', issues, 1n, true);
-  value.max_output_tokens = normalizeInteger(value.max_output_tokens, 'max_output_tokens', issues, 1n, true);
+  value.context_window = normalizeInteger(value.context_window, 'context_window', issues, 1n, true, MAX_TOKEN_LIMIT);
+  value.max_output_tokens = normalizeInteger(value.max_output_tokens, 'max_output_tokens', issues, 1n, true, MAX_TOKEN_LIMIT);
   value.input_modalities = normalizeList(value.input_modalities, 'input_modalities', issues);
   value.traits = normalizeList(value.traits, 'traits', issues);
   if (!['available', 'degraded', 'unavailable'].includes(String(value.status))) issues.push({ path: 'status', code: 'statusRequired' });

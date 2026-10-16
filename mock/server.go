@@ -80,7 +80,7 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	id := fmt.Sprintf("req_mock_%06d", s.sequence.Add(1))
 	w.Header().Set("X-Request-ID", id)
 	w.Header().Set("Cache-Control", "no-store")
-	if r.URL.Path == "/nomifun/v1/meta" {
+	if r.URL.Path == "/nomifun/v1/meta" || r.URL.Path == "/nomifun/v1/protocols" {
 		query, err := url.ParseQuery(r.URL.RawQuery)
 		if _, hasKey := query["key"]; hasKey || err != nil {
 			s.writeError(w, r, id, &apiError{401, "invalid_api_key", "API keys in URLs are accepted only by native Gemini endpoints."})
@@ -91,7 +91,11 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			s.writeError(w, r, id, &apiError{405, "method_not_allowed", "Use GET for this endpoint."})
 			return
 		}
-		writeJSON(w, 200, v1.MockMeta())
+		if r.URL.Path == "/nomifun/v1/protocols" {
+			writeJSON(w, 200, v1.Manifest(v1.MockMeta().Capabilities))
+		} else {
+			writeJSON(w, 200, v1.MockMeta())
+		}
 		return
 	}
 	key, authErr := authenticate(r)

@@ -89,6 +89,12 @@ func validateMeta(data []byte) error {
 	if m.ContractVersion != v1.Version || strings.TrimSpace(m.Operator.Name) == "" || m.Capabilities == nil || m.OptionalEndpoints == nil || !unique(m.Capabilities) || !unique(m.OptionalEndpoints) {
 		return errors.New("invalid meta version, operator or capabilities")
 	}
+	if extension, present := o["protocol_manifest"]; present {
+		var path string
+		if json.Unmarshal(extension, &path) != nil || path != "/nomifun/v1/protocols" {
+			return errors.New("invalid protocol manifest discovery path")
+		}
+	}
 	for _, ep := range m.Capabilities {
 		if !knownEndpoint(string(ep)) {
 			return errors.New("unknown capability endpoint")
@@ -172,18 +178,7 @@ func validateCatalog(data []byte) error {
 				if !knownEndpoint(string(ep)) {
 					return errors.New("unrecognized task endpoint")
 				}
-				valid := false
-				switch task {
-				case v1.Chat:
-					valid = contains([]v1.Endpoint{v1.OpenAI, v1.Responses, v1.Anthropic, v1.Gemini}, ep)
-				case v1.ImageGeneration, v1.ImageEdit:
-					valid = ep == v1.Images
-				case v1.Embedding:
-					valid = ep == v1.Embeddings
-				case v1.Reranking:
-					valid = ep == v1.Rerank
-				}
-				if !valid {
+				if !v1.SupportsTaskEndpoint(task, ep) {
 					return errors.New("endpoint is incompatible with task")
 				}
 			}

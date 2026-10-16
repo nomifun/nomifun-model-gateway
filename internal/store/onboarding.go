@@ -38,7 +38,7 @@ func (s *Store) catalogTransaction(ctx context.Context, fn func(*gorm.DB) error)
 }
 
 func modelAccessRecord(definition v1.Model, enabled, subscriptionOnly bool) (core.Model, error) {
-	if err := ValidateModel(definition); err != nil {
+	if err := ValidateDesktopModel(definition); err != nil {
 		return core.Model{}, err
 	}
 	definition.IncludedInPlan = false

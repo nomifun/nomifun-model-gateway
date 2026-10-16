@@ -45,10 +45,9 @@ func ValidateChannel(c core.Channel) error {
 	if json.Unmarshal([]byte(c.EndpointsJSON), &endpoints) != nil || len(endpoints) == 0 {
 		return errors.New("channel endpoints must be a nonempty array")
 	}
-	valid := map[v1.Endpoint]bool{v1.OpenAI: true, v1.Responses: true, v1.Anthropic: true, v1.Gemini: true, v1.Images: true, v1.Embeddings: true, v1.Rerank: true}
 	seen := map[v1.Endpoint]bool{}
 	for _, endpoint := range endpoints {
-		if !valid[endpoint] || seen[endpoint] {
+		if !v1.KnownEndpoint(endpoint) || seen[endpoint] {
 			return errors.New("channel endpoints must be recognized and unique")
 		}
 		seen[endpoint] = true

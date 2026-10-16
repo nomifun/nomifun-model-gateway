@@ -85,6 +85,7 @@ func New(st *store.Store, bill *billing.Service, native *relay.Service, pay *pay
 	})
 	e.GET("/metrics", s.prometheus)
 	e.GET("/nomifun/v1/meta", s.meta)
+	e.GET("/nomifun/v1/protocols", s.protocols)
 	e.GET("/nomifun/v1/catalog", s.apiAuth(), s.catalog)
 	e.GET("/nomifun/v1/account", s.apiAuth(), s.account)
 	e.GET("/v1/models", s.apiAuth(), s.models)

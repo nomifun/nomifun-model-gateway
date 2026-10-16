@@ -11,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	v1 "github.com/nomifun/nomifun-model-gateway/contract/v1"
 	"github.com/nomifun/nomifun-model-gateway/internal/core"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -33,6 +34,9 @@ func New(db *gorm.DB, ttl time.Duration) *Service {
 }
 
 func Supports(c core.Channel, model, endpoint string) (string, bool) {
+	if !v1.KnownEndpoint(v1.Endpoint(endpoint)) {
+		return "", false
+	}
 	var models map[string]string
 	var endpoints []string
 	if json.Unmarshal([]byte(c.ModelsJSON), &models) != nil || json.Unmarshal([]byte(c.EndpointsJSON), &endpoints) != nil {

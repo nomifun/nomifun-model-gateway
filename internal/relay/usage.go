@@ -392,29 +392,34 @@ func (p *usageParser) json(raw []byte) {
 	p.usage.Complete = p.seen && p.ready && !p.invalid
 }
 func (p *usageParser) event(frame []byte) (string, error) {
-	var data []byte
-	for _, line := range bytes.Split(frame, []byte{'\n'}) {
-		line = bytes.TrimSuffix(line, []byte{'\r'})
-		if bytes.HasPrefix(line, []byte("data:")) {
-			part := bytes.TrimPrefix(line, []byte("data:"))
-			part = bytes.TrimPrefix(part, []byte{' '})
-			if len(data) > 0 {
-				data = append(data, '\n')
-			}
-			data = append(data, part...)
+	event, data, dataSeen := parseSSEFields(frame)
+	if dataSeen && bytes.Equal(bytes.TrimSpace(data), []byte("[DONE]")) {
+		if !validSSEDone(event, data, dataSeen) {
+			p.invalid = true
+			p.failed = true
+			p.usage.Complete = false
+			return "", nil
 		}
-	}
-	if bytes.Equal(data, []byte("[DONE]")) {
+		// Other native protocols require their own terminal evidence. An
+		// OpenAI-style marker is opaque there, including after partial usage.
+		if p.endpoint != "openai" {
+			return "", nil
+		}
 		p.terminal = true
 		p.usage.Complete = p.seen && p.ready && !p.invalid
 		return "", nil
 	}
 	value := object(data)
-	if _, hasError := value["error"]; hasError {
+	if nativeError, hasError := value["error"]; hasError && !bytes.Equal(bytes.TrimSpace(nativeError), []byte("null")) {
 		p.failed = true
 	}
 	var kind string
 	json.Unmarshal(value["type"], &kind)
+	// Responses emits errors with top-level type/code/message, without an
+	// error object. Preserve the event while recording failed channel health.
+	if kind == "error" || event == "error" {
+		p.failed = true
+	}
 	var id string
 	switch p.endpoint {
 	case "openai-response":
@@ -424,7 +429,7 @@ func (p *usageParser) event(frame []byte) (string, error) {
 		case "response.completed", "response.failed", "response.incomplete":
 			p.native(response["usage"], kind)
 			p.terminal = true
-			p.failed = kind == "response.failed"
+			p.failed = p.failed || kind == "response.failed"
 			p.usage.Complete = p.seen && p.ready && !p.invalid
 		}
 	case "anthropic":
@@ -458,6 +463,13 @@ func (p *usageParser) event(frame []byte) (string, error) {
 	return id, nil
 }
 func (p *usageParser) finish(clean bool) core.Usage {
+	if !clean {
+		// A terminal snapshot is not a completed delivery when a later read,
+		// record delimiter or client flush failed. Keep its counters as partial
+		// reconciliation evidence, without allowing automatic settlement.
+		p.usage.Complete = false
+		return p.usage
+	}
 	if p.endpoint == "gemini" && clean && p.seen && p.ready && p.terminal && !p.invalid {
 		p.usage.Complete = true
 	}

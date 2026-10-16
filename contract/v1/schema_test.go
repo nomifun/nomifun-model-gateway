@@ -217,14 +217,36 @@ var frozenPaths = map[string]string{
 	"/v1beta/models/{model}:generateContent": "POST", "/v1beta/models/{model}:streamGenerateContent": "POST",
 }
 
+// Additive discovery does not change the original v1 operations or their
+// authentication. Keep this list explicit so an undocumented new path fails.
+var additivePaths = map[string]string{"/nomifun/v1/protocols": "GET"}
+
+func documentedPaths() map[string]string {
+	paths := make(map[string]string, len(frozenPaths)+len(additivePaths))
+	for path, method := range frozenPaths {
+		paths[path] = method
+	}
+	for path, method := range additivePaths {
+		paths[path] = method
+	}
+	return paths
+}
+
 func TestOpenAPIFrozenSurface(t *testing.T) {
 	c := loadOpenAPI(t)
 	if object(t, c.doc["info"])["version"] != v1.Version {
 		t.Fatalf("OpenAPI info.version must equal %s", v1.Version)
 	}
 	paths := object(t, c.doc["paths"])
-	if len(paths) != len(frozenPaths) {
-		t.Fatalf("frozen path count = %d, want %d", len(paths), len(frozenPaths))
+	if len(frozenPaths) != 14 {
+		t.Fatal("the original fourteen frozen v1 operations must remain covered")
+	}
+	allPaths := documentedPaths()
+	if len(allPaths) != len(frozenPaths)+len(additivePaths) {
+		t.Fatal("additive paths must not replace a frozen operation")
+	}
+	if len(paths) != len(allPaths) {
+		t.Fatalf("documented path count = %d, want %d frozen plus %d additive", len(paths), len(frozenPaths), len(additivePaths))
 	}
 	schemes := object(t, object(t, c.doc["components"])["securitySchemes"])
 	headerSchemes := map[string]bool{}
@@ -248,7 +270,7 @@ func TestOpenAPIFrozenSurface(t *testing.T) {
 		t.Fatalf("must document bearer, both header keys, and Gemini query key")
 	}
 	operationIDs := map[string]string{}
-	for path, method := range frozenPaths {
+	for path, method := range allPaths {
 		t.Run(method+" "+path, func(t *testing.T) {
 			pathItem := object(t, paths[path])
 			for _, candidate := range []string{"get", "post", "put", "patch", "delete", "head", "options", "trace"} {
@@ -273,9 +295,9 @@ func TestOpenAPIFrozenSurface(t *testing.T) {
 			if !ok {
 				t.Fatal("missing security declaration")
 			}
-			if path == "/nomifun/v1/meta" {
+			if path == "/nomifun/v1/meta" || path == "/nomifun/v1/protocols" {
 				if len(alternatives) != 0 {
-					t.Fatal("meta must explicitly allow anonymous access")
+					t.Fatal("instance metadata and protocol discovery must explicitly allow anonymous access")
 				}
 			} else {
 				want := map[string]bool{}
@@ -440,10 +462,162 @@ func TestOpenAPIControlFixtures(t *testing.T) {
 		value any
 	}{
 		{"Meta", v1.MockMeta()}, {"Catalog", v1.MockCatalog(false)}, {"Catalog", v1.MockCatalog(true)}, {"Account", v1.MockAccount()},
+		{"ProtocolManifest", v1.Manifest(v1.Endpoints())}, {"ProtocolManifest", v1.Manifest(nil)}, {"ProtocolManifest", v1.Manifest([]v1.Endpoint{v1.Gemini, v1.Images})},
 	} {
 		t.Run(fixture.name, func(t *testing.T) {
 			if err := c.schema(t, "#/components/schemas/"+fixture.name).Validate(jsonValue(t, fixture.value)); err != nil {
 				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestOpenAPIProtocolDiscoveryIsAnOptionalAdditiveExtension(t *testing.T) {
+	c := loadOpenAPI(t)
+	metaSchema := c.schema(t, "#/components/schemas/Meta")
+	meta := object(t, jsonValue(t, v1.MockMeta()))
+	delete(meta, "protocol_manifest")
+	if err := metaSchema.Validate(meta); err != nil {
+		t.Fatalf("an older v1 implementation may omit protocol discovery: %v", err)
+	}
+	for _, invalid := range []any{nil, "", "/v1/responses", "https://operator.example/nomifun/v1/protocols"} {
+		meta["protocol_manifest"] = invalid
+		if err := metaSchema.Validate(meta); err == nil {
+			t.Fatalf("accepted invalid protocol_manifest: %v", invalid)
+		}
+	}
+	meta["protocol_manifest"] = "/nomifun/v1/protocols"
+	meta["future_control_field"] = map[string]any{"enabled": true}
+	if err := metaSchema.Validate(meta); err != nil {
+		t.Fatalf("unknown additive metadata remains permitted: %v", err)
+	}
+	manifest := object(t, jsonValue(t, v1.Manifest(v1.Endpoints())))
+	manifest["future_control_field"] = true
+	protocol := object(t, manifest["protocols"].([]any)[0])
+	protocol["future_protocol_field"] = []any{"future"}
+	object(t, protocol["endpoints"].([]any)[0])["future_endpoint_field"] = true
+	if err := c.schema(t, "#/components/schemas/ProtocolManifest").Validate(manifest); err != nil {
+		t.Fatalf("unknown additive manifest fields remain permitted: %v", err)
+	}
+	// optional_endpoints keeps its original native-only vocabulary. The new
+	// anonymous control extension must be discovered through its own field.
+	meta["optional_endpoints"] = []any{"/nomifun/v1/protocols"}
+	if err := metaSchema.Validate(meta); err == nil {
+		t.Fatal("protocol discovery was accepted as a frozen native optional endpoint")
+	}
+}
+
+func TestOpenAPIProtocolManifestRejectsInvalidBoundaries(t *testing.T) {
+	c := loadOpenAPI(t)
+	schema := c.schema(t, "#/components/schemas/ProtocolManifest")
+	for _, test := range []struct {
+		name   string
+		mutate func(map[string]any)
+	}{
+		{"wrong_manifest_version", func(m map[string]any) { m["manifest_version"] = "2" }},
+		{"unsafe_producer_limit", func(m map[string]any) { m["max_token_limit"] = json.Number("9007199254740992") }},
+		{"string_producer_limit", func(m map[string]any) { m["max_token_limit"] = "9007199254740991" }},
+		{"authoritative_traits", func(m map[string]any) { m["traits_are_advisory"] = false }},
+		{"unsupported_chat", func(m map[string]any) {
+			m["unsupported_tasks"] = []any{"chat", "video_generation", "music_generation", "speech_synthesis", "speech_recognition"}
+		}},
+		{"duplicate_unsupported_task", func(m map[string]any) {
+			m["unsupported_tasks"] = []any{"video_generation", "video_generation", "music_generation", "speech_synthesis", "speech_recognition"}
+		}},
+		{"technical_as_catalog_trait", func(m map[string]any) {
+			m["catalog_traits"] = []any{"function_calling", "audio_input", "video_input", "web_search"}
+		}},
+		{"trait_as_technical_capability", func(m map[string]any) { m["technical_capabilities"] = []any{"vision_input", "reasoning", "streaming"} }},
+		{"null_protocol_array", func(m map[string]any) { m["protocols"] = nil }},
+		{"duplicate_protocol", func(m map[string]any) { m["protocols"] = []any{m["protocols"].([]any)[0], m["protocols"].([]any)[0]} }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			manifest := object(t, jsonValue(t, v1.Manifest(v1.Endpoints())))
+			test.mutate(manifest)
+			if err := schema.Validate(manifest); err == nil {
+				t.Fatal("published manifest schema accepted invalid boundaries")
+			}
+		})
+	}
+	for _, protocol := range v1.Protocols() {
+		for field := range object(t, jsonValue(t, protocol)) {
+			t.Run(protocol.ProtocolID+"/missing_"+field, func(t *testing.T) {
+				value := object(t, jsonValue(t, protocol))
+				delete(value, field)
+				if err := c.schema(t, "#/components/schemas/ProtocolDescriptor").Validate(value); err == nil {
+					t.Fatal("accepted missing protocol descriptor field")
+				}
+			})
+		}
+		for field := range object(t, jsonValue(t, protocol.Endpoints[0])) {
+			t.Run(protocol.ProtocolID+"/endpoint_missing_"+field, func(t *testing.T) {
+				value := object(t, jsonValue(t, protocol.Endpoints[0]))
+				delete(value, field)
+				if err := c.schema(t, "#/components/schemas/ProtocolEndpointDescriptor").Validate(value); err == nil {
+					t.Fatal("accepted missing native operation descriptor field")
+				}
+			})
+		}
+		for _, mutation := range []struct {
+			name string
+			edit func(map[string]any)
+		}{
+			{"wrong_auth", func(p map[string]any) { p["auth_scheme"] = "query_key:key" }},
+			{"wrong_connection", func(p map[string]any) { p["connection_role"] = "future" }},
+			{"wrong_root_suffix", func(p map[string]any) { p["base_url_suffix"] = "/v2" }},
+			{"wrong_task", func(p map[string]any) { p["supported_tasks"] = []any{"speech_synthesis"} }},
+			{"wrong_native_path", func(p map[string]any) { object(t, p["endpoints"].([]any)[0])["default_value"] = "/future" }},
+			{"wrong_endpoint_task", func(p map[string]any) { object(t, p["endpoints"].([]any)[0])["task"] = "rerank" }},
+		} {
+			if mutation.name == "wrong_endpoint_task" && protocol.Endpoint == v1.Rerank {
+				continue
+			}
+			t.Run(protocol.ProtocolID+"/"+mutation.name, func(t *testing.T) {
+				value := object(t, jsonValue(t, protocol))
+				mutation.edit(value)
+				if err := c.schema(t, "#/components/schemas/ProtocolDescriptor").Validate(value); err == nil {
+					t.Fatal("accepted an incompatible protocol operation or connection")
+				}
+			})
+		}
+	}
+}
+
+func TestOpenAPIProtocolManifestActualMockErrors(t *testing.T) {
+	c := loadOpenAPI(t)
+	server := httptest.NewServer(mock.New(mock.Config{}))
+	defer server.Close()
+	for _, fixture := range []struct {
+		method, path string
+		status       int
+	}{
+		{http.MethodPost, "/nomifun/v1/protocols", http.StatusMethodNotAllowed},
+		{http.MethodGet, "/nomifun/v1/protocols?key=synthetic-query-key", http.StatusUnauthorized},
+	} {
+		t.Run(fixture.method+fixture.path, func(t *testing.T) {
+			request, err := http.NewRequest(fixture.method, server.URL+fixture.path, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response, err := server.Client().Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			body, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+			if err != nil || response.StatusCode != fixture.status {
+				t.Fatalf("unexpected manifest response: status=%d error=%v", response.StatusCode, err)
+			}
+			value, err := jsonschema.UnmarshalJSON(bytes.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			media := c.responseMedia(t, "/nomifun/v1/protocols", "GET", fixture.status, "application/json")
+			if err := c.mediaSchema(t, media, "schema").Validate(value); err != nil {
+				t.Fatal(err)
+			}
+			if response.Header.Get("X-Request-ID") == "" || response.Header.Get("Cache-Control") != "no-store" {
+				t.Fatal("manifest errors require request identity and no-store headers")
 			}
 		})
 	}
@@ -519,9 +693,12 @@ func firstPrice(t *testing.T, model map[string]any) map[string]any {
 
 func TestOpenAPIControlRequiredAndNumericFields(t *testing.T) {
 	c := loadOpenAPI(t)
-	fixtures := map[string]any{"Meta": v1.MockMeta(), "Catalog": v1.MockCatalog(false), "Account": v1.MockAccount()}
+	fixtures := map[string]any{"Meta": v1.MockMeta(), "Catalog": v1.MockCatalog(false), "Account": v1.MockAccount(), "ProtocolManifest": v1.Manifest(v1.Endpoints())}
 	for name, fixture := range fixtures {
 		for field := range object(t, jsonValue(t, fixture)) {
+			if name == "Meta" && field == "protocol_manifest" {
+				continue // Explicit optional extension; all frozen fields remain required.
+			}
 			t.Run(name+"/missing_"+field, func(t *testing.T) {
 				value := object(t, jsonValue(t, fixture))
 				delete(value, field)
@@ -560,14 +737,19 @@ func TestOpenAPIValidatesActualMockResponses(t *testing.T) {
 	c := loadOpenAPI(t)
 	server := httptest.NewServer(mock.New(mock.Config{}))
 	defer server.Close()
-	paths := make([]string, 0, len(frozenPaths))
-	for path := range frozenPaths {
+	allPaths := documentedPaths()
+	paths := make([]string, 0, len(allPaths))
+	for path := range allPaths {
 		paths = append(paths, path)
 	}
 	sort.Strings(paths)
 	for _, path := range paths {
 		t.Run(path, func(t *testing.T) {
-			validateMockResponse(t, c, server, path, false, mock.DefaultAPIKey, http.StatusOK)
+			key := mock.DefaultAPIKey
+			if path == "/nomifun/v1/protocols" {
+				key = "" // The manifest is genuinely anonymous.
+			}
+			validateMockResponse(t, c, server, path, false, key, http.StatusOK)
 		})
 	}
 	for _, path := range []string{"/v1/chat/completions", "/v1/responses", "/v1/messages"} {
@@ -599,11 +781,14 @@ func validateMockResponse(t *testing.T, c *openAPIContract, server *httptest.Ser
 	if strings.HasSuffix(path, ":streamGenerateContent") {
 		actualPath += "?alt=sse"
 	}
-	request, err := http.NewRequest(frozenPaths[path], server.URL+actualPath, bytes.NewReader(body))
+	method := documentedPaths()[path]
+	request, err := http.NewRequest(method, server.URL+actualPath, bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
-	request.Header.Set("Authorization", "Bearer "+key)
+	if key != "" {
+		request.Header.Set("Authorization", "Bearer "+key)
+	}
 	request.Header.Set("Anthropic-Version", "2023-06-01")
 	if contentType != "" {
 		request.Header.Set("Content-Type", contentType)
@@ -624,7 +809,7 @@ func validateMockResponse(t *testing.T, c *openAPIContract, server *httptest.Ser
 	if err != nil {
 		t.Fatal(err)
 	}
-	media := c.responseMedia(t, path, frozenPaths[path], response.StatusCode, mediaType)
+	media := c.responseMedia(t, path, method, response.StatusCode, mediaType)
 	var value any
 	if mediaType == "text/event-stream" {
 		value = string(data)
@@ -687,7 +872,7 @@ func validateMockResponse(t *testing.T, c *openAPIContract, server *httptest.Ser
 
 func mockRequest(t *testing.T, path string, stream bool) ([]byte, string) {
 	t.Helper()
-	if frozenPaths[path] == "GET" {
+	if documentedPaths()[path] == "GET" {
 		return nil, ""
 	}
 	if path == "/v1/images/edits" {

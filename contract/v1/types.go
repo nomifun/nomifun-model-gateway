@@ -38,6 +38,8 @@ type Meta struct {
 	Operator          Operator   `json:"operator"`
 	Capabilities      []Endpoint `json:"capabilities"`
 	OptionalEndpoints []string   `json:"optional_endpoints"`
+	// Additive control-plane discovery; OptionalEndpoints remains native-only.
+	ProtocolManifest string `json:"protocol_manifest,omitempty"`
 }
 type TaskEndpoints struct {
 	Endpoints         []Endpoint `json:"endpoints"`

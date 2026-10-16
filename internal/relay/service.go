@@ -247,8 +247,10 @@ func (s *Service) Serve(w http.ResponseWriter, r *http.Request, req Request) {
 				version = s.Config.DefaultAnthropicVersion
 			}
 			upstreamReq.Header.Set("anthropic-version", version)
-			if beta := r.Header.Get("anthropic-beta"); beta != "" {
-				upstreamReq.Header.Set("anthropic-beta", beta)
+			for _, beta := range r.Header.Values("anthropic-beta") {
+				if beta != "" {
+					upstreamReq.Header.Add("anthropic-beta", beta)
+				}
 			}
 		case "gemini":
 			upstreamReq.Header.Set("x-goog-api-key", key)
@@ -460,11 +462,16 @@ func (s *Service) stream(w http.ResponseWriter, response *http.Response, ctx con
 	defer timer.Stop()
 	buffer := make([]byte, 0, 32<<10)
 	chunk := make([]byte, 32<<10)
+	var framer sseRecordFramer
 	started := false
-	emit := func(frame []byte) error {
-		id, e := p.event(frame)
-		if e != nil {
-			return e
+	emit := func(frame []byte, commit bool) error {
+		var id string
+		var e error
+		if commit {
+			id, e = p.event(frame)
+			if e != nil {
+				return e
+			}
 		}
 		if id != "" && p.endpoint == "openai-response" {
 			if e = s.Channels.BindResponse(ctx, key, id, account); e != nil {
@@ -493,8 +500,10 @@ func (s *Service) stream(w http.ResponseWriter, response *http.Response, ctx con
 		if n > 0 {
 			timer.Reset(s.Config.IdleTimeout)
 			buffer = append(buffer, chunk[:n]...)
+		}
+		if n > 0 || e == io.EOF {
 			for {
-				end := eventEnd(buffer)
+				end := framer.next(buffer, e == io.EOF)
 				if end < 0 {
 					break
 				}
@@ -502,7 +511,7 @@ func (s *Service) stream(w http.ResponseWriter, response *http.Response, ctx con
 					return started, errors.New("native SSE event limit")
 				}
 				frame := buffer[:end]
-				if e := emit(frame); e != nil {
+				if e := emit(frame, true); e != nil {
 					return started, e
 				}
 				buffer = buffer[end:]
@@ -513,8 +522,16 @@ func (s *Service) stream(w http.ResponseWriter, response *http.Response, ctx con
 		}
 		if e == io.EOF {
 			if len(buffer) > 0 {
-				if e := emit(buffer); e != nil {
+				// A record is committed only by a blank line. Match Desktop's
+				// bounded EOF exception for the complete OpenAI [DONE] sentinel;
+				// truncated JSON, including terminal usage, is never billable.
+				event, data, dataSeen := parseSSEFields(buffer)
+				done := p.endpoint == "openai" && validSSEDone(event, data, dataSeen)
+				if e := emit(buffer, done); e != nil {
 					return started, e
+				}
+				if !done {
+					return started, errors.New("unterminated native SSE record")
 				}
 			}
 			if !started {
@@ -529,17 +546,6 @@ func (s *Service) stream(w http.ResponseWriter, response *http.Response, ctx con
 			return started, ctx.Err()
 		}
 	}
-}
-func eventEnd(buffer []byte) int {
-	a := bytes.Index(buffer, []byte("\n\n"))
-	b := bytes.Index(buffer, []byte("\r\n\r\n"))
-	if a >= 0 && (b < 0 || a < b) {
-		return a + 2
-	}
-	if b >= 0 {
-		return b + 4
-	}
-	return -1
 }
 
 // ProbeChannel verifies the native account's model endpoint without model

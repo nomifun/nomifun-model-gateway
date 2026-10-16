@@ -66,7 +66,7 @@ func publicationFailure(c *gin.Context, err error) bool {
 // calls upstreams: channel configuration is evidence of routing, not fidelity.
 func (s *Server) publicationIssuesTx(tx *gorm.DB, model modelDTO, extra *core.Channel) ([]publicationIssue, error) {
 	issues := []publicationIssue{}
-	if err := store.ValidateModel(model.Model); err != nil {
+	if err := store.ValidateDesktopModel(model.Model); err != nil {
 		return append(issues, issue(model.ID, structuralModelField(err), err.Error(), true)), nil
 	}
 	var channels []core.Channel
@@ -183,7 +183,7 @@ func structuralModelField(err error) string {
 		return "pricing"
 	case strings.Contains(text, "endpoint"), strings.Contains(text, "task"):
 		return "task_endpoints"
-	case strings.Contains(text, "ceilings"):
+	case strings.Contains(text, "ceilings"), strings.Contains(text, "context_window"):
 		return "context_window"
 	case strings.Contains(text, "status"):
 		return "status"

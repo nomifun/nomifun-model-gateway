@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math/big"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,27 +24,44 @@ type DiscoveryInput struct {
 	APIVersion string `json:"api_version"`
 }
 
-// DiscoveredModel contains only metadata present in the native list response.
+// DiscoveryTokenLimitSources records the native field behind each advisory
+// limit. input_only ceilings must never have the output limit subtracted.
+// These source paths describe an upstream declaration, not gateway acceptance.
+type DiscoveryTokenLimitSources struct {
+	ContextLimit     string `json:"context_limit,omitempty"`
+	OutputLimit      string `json:"output_limit,omitempty"`
+	ContextLimitKind string `json:"context_limit_kind,omitempty"`
+}
+
+// DiscoveredModel contains metadata present in the native list response and
+// conservative task suggestions from explicit native generation methods.
 // It is deliberately separate from the public catalog: discovery establishes
-// neither supported gateway tasks nor prices, access policy or actual calls.
+// neither gateway protocol acceptance nor prices, access policy or actual calls.
 type DiscoveredModel struct {
-	ID                         string   `json:"id"`
-	NativeName                 string   `json:"native_name,omitempty"`
-	DisplayName                string   `json:"display_name,omitempty"`
-	Description                string   `json:"description,omitempty"`
-	OwnedBy                    string   `json:"owned_by,omitempty"`
-	Created                    *int64   `json:"created,omitempty"`
-	CreatedAt                  string   `json:"created_at,omitempty"`
-	InputTokenLimit            *int64   `json:"input_token_limit,omitempty"`
-	OutputTokenLimit           *int64   `json:"output_token_limit,omitempty"`
-	SupportedGenerationMethods []string `json:"supported_generation_methods,omitempty"`
+	ID                         string                      `json:"id"`
+	NativeName                 string                      `json:"native_name,omitempty"`
+	DisplayName                string                      `json:"display_name,omitempty"`
+	Description                string                      `json:"description,omitempty"`
+	OwnedBy                    string                      `json:"owned_by,omitempty"`
+	Created                    *int64                      `json:"created,omitempty"`
+	CreatedAt                  string                      `json:"created_at,omitempty"`
+	InputTokenLimit            *int64                      `json:"input_token_limit,omitempty"`
+	OutputTokenLimit           *int64                      `json:"output_token_limit,omitempty"`
+	SupportedGenerationMethods []string                    `json:"supported_generation_methods,omitempty"`
+	Tasks                      []string                    `json:"tasks,omitempty"`
+	TasksSource                string                      `json:"tasks_source,omitempty"`
+	ContextLimit               *int64                      `json:"context_limit,omitempty"`
+	OutputLimit                *int64                      `json:"output_limit,omitempty"`
+	TokenLimitSources          *DiscoveryTokenLimitSources `json:"token_limit_sources,omitempty"`
 }
 
 type DiscoveryResult struct {
-	Models   []DiscoveredModel `json:"models"`
-	Complete bool              `json:"complete"`
-	Pages    int               `json:"pages"`
-	Warnings []string          `json:"warnings"`
+	Models        []DiscoveredModel `json:"models"`
+	Complete      bool              `json:"complete"`
+	Pages         int               `json:"pages"`
+	Warnings      []string          `json:"warnings"`
+	CatalogSource string            `json:"catalog_source,omitempty"`
+	Advisory      bool              `json:"advisory"`
 }
 
 type discoveryLimits struct {
@@ -112,7 +131,7 @@ func (s *Service) DiscoverPreview(ctx context.Context, in DiscoveryInput) (Disco
 }
 
 func (s *Service) discoverModels(ctx context.Context, in DiscoveryInput, limits discoveryLimits) (DiscoveryResult, error) {
-	out := DiscoveryResult{Models: []DiscoveredModel{}, Complete: true, Warnings: []string{}}
+	out := DiscoveryResult{Models: []DiscoveredModel{}, Complete: true, Warnings: []string{}, Advisory: true}
 	warn := func(message string) {
 		out.Complete = false
 		for _, existing := range out.Warnings {
@@ -191,6 +210,7 @@ func (s *Service) discoverModels(ctx context.Context, in DiscoveryInput, limits 
 			return fail("The upstream model list has an unsupported or invalid response format.")
 		}
 		out.Pages++
+		out.CatalogSource = "remote"
 		for _, model := range models {
 			if !validDiscoveredModel(model, in.APIKey) {
 				warn("Some upstream model entries contain invalid metadata and were omitted. Confirm them manually.")
@@ -271,19 +291,21 @@ type discoveryPage struct {
 }
 
 type discoveryNativeModel struct {
-	ID                         string   `json:"id"`
-	Name                       string   `json:"name"`
-	DisplayName                string   `json:"display_name"`
-	GeminiDisplayName          string   `json:"displayName"`
-	Description                string   `json:"description"`
-	OwnedBy                    string   `json:"owned_by"`
-	Created                    *int64   `json:"created"`
-	CreatedAt                  string   `json:"created_at"`
-	MaxInputTokens             *int64   `json:"max_input_tokens"`
-	MaxTokens                  *int64   `json:"max_tokens"`
-	InputTokenLimit            *int64   `json:"inputTokenLimit"`
-	OutputTokenLimit           *int64   `json:"outputTokenLimit"`
-	SupportedGenerationMethods []string `json:"supportedGenerationMethods"`
+	ID                         string          `json:"id"`
+	Name                       string          `json:"name"`
+	DisplayName                string          `json:"display_name"`
+	GeminiDisplayName          string          `json:"displayName"`
+	Description                string          `json:"description"`
+	OwnedBy                    string          `json:"owned_by"`
+	Created                    *int64          `json:"created"`
+	CreatedAt                  string          `json:"created_at"`
+	MaxInputTokens             json.RawMessage `json:"max_input_tokens"`
+	MaxTokens                  json.RawMessage `json:"max_tokens"`
+	InputTokenLimit            json.RawMessage `json:"inputTokenLimit"`
+	OutputTokenLimit           json.RawMessage `json:"outputTokenLimit"`
+	SupportedGenerationMethods json.RawMessage `json:"supportedGenerationMethods"`
+	ContextLength              json.RawMessage `json:"context_length"`
+	TopProvider                json.RawMessage `json:"top_provider"`
 }
 
 func decodeDiscoveryPage(kind string, body []byte, recordLimit int) ([]DiscoveredModel, string, bool, bool, error) {
@@ -321,16 +343,41 @@ func decodeDiscoveryPage(kind string, body []byte, recordLimit int) ([]Discovere
 		record := DiscoveredModel{ID: model.ID, DisplayName: model.DisplayName, Description: model.Description, OwnedBy: model.OwnedBy, Created: model.Created}
 		if kind == "anthropic" {
 			record.CreatedAt = model.CreatedAt
-			record.InputTokenLimit = model.MaxInputTokens
-			record.OutputTokenLimit = model.MaxTokens
+			record.InputTokenLimit = declaredDiscoveryTokenLimit(model.MaxInputTokens)
+			record.OutputTokenLimit = declaredDiscoveryTokenLimit(model.MaxTokens)
+			record.setDeclaredTokenLimits(record.InputTokenLimit, "max_input_tokens", "input_only", record.OutputTokenLimit, "max_tokens")
 		}
 		if kind == "gemini" {
 			record.ID = strings.TrimPrefix(model.Name, "models/")
 			record.NativeName = model.Name
 			record.DisplayName = model.GeminiDisplayName
-			record.InputTokenLimit = model.InputTokenLimit
-			record.OutputTokenLimit = model.OutputTokenLimit
-			record.SupportedGenerationMethods = model.SupportedGenerationMethods
+			record.InputTokenLimit = declaredDiscoveryTokenLimit(model.InputTokenLimit)
+			record.OutputTokenLimit = declaredDiscoveryTokenLimit(model.OutputTokenLimit)
+			record.setDeclaredTokenLimits(record.InputTokenLimit, "inputTokenLimit", "input_only", record.OutputTokenLimit, "outputTokenLimit")
+			// Generation methods are advisory metadata. Unknown methods stay
+			// visible without becoming invented tasks or protocol acceptance.
+			if json.Unmarshal(model.SupportedGenerationMethods, &record.SupportedGenerationMethods) != nil {
+				record.SupportedGenerationMethods = nil
+			}
+			record.Tasks = declaredDiscoveryGeminiTasks(record.SupportedGenerationMethods)
+			if len(record.Tasks) != 0 {
+				record.TasksSource = "provider_declared"
+			}
+		}
+		if kind == "openai" || kind == "compatible" {
+			// OpenAI's standard list does not declare token limits. These
+			// optional OpenRouter extensions have documented semantics:
+			// https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties
+			var topProvider struct {
+				ContextLength       json.RawMessage `json:"context_length"`
+				MaxCompletionTokens json.RawMessage `json:"max_completion_tokens"`
+			}
+			_ = json.Unmarshal(model.TopProvider, &topProvider)
+			contextLimit, contextSource := declaredDiscoveryTokenLimit(model.ContextLength), "context_length"
+			if contextLimit == nil {
+				contextLimit, contextSource = declaredDiscoveryTokenLimit(topProvider.ContextLength), "top_provider.context_length"
+			}
+			record.setDeclaredTokenLimits(contextLimit, contextSource, "combined", declaredDiscoveryTokenLimit(topProvider.MaxCompletionTokens), "top_provider.max_completion_tokens")
 		}
 		out = append(out, record)
 	}
@@ -338,6 +385,89 @@ func decodeDiscoveryPage(kind string, body []byte, recordLimit int) ([]Discovere
 		return nil, "", false, false, err
 	}
 	return out, next, more, false, nil
+}
+
+// JSON integer limits are exposed to a JavaScript console and must remain
+// exact there. Using a rational parser avoids rounding a fraction or a large
+// integer through float64. Advisory garbage is absent, never a listing error.
+const maxDiscoveryTokenLimit int64 = 9007199254740991
+
+func declaredDiscoveryTokenLimit(raw json.RawMessage) *int64 {
+	value := strings.TrimSpace(string(raw))
+	if len(value) == 0 || len(value) > 128 {
+		return nil
+	}
+	var limit int64
+	if strings.HasPrefix(value, `"`) {
+		var text string
+		if json.Unmarshal(raw, &text) != nil {
+			return nil
+		}
+		parsed, err := strconv.ParseInt(strings.TrimSpace(text), 10, 64)
+		if err != nil {
+			return nil
+		}
+		limit = parsed
+	} else {
+		// The surrounding JSON decoder validates number syntax. Bound the
+		// advisory lexeme before parsing pathological exponents or digits.
+		if value[0] != '-' && (value[0] < '0' || value[0] > '9') {
+			return nil
+		}
+		if exponentAt := strings.IndexAny(value, "eE"); exponentAt >= 0 {
+			exponent, err := strconv.ParseInt(value[exponentAt+1:], 10, 16)
+			if err != nil || exponent < -128 || exponent > 128 {
+				return nil
+			}
+		}
+		number, ok := new(big.Rat).SetString(value)
+		if !ok || !number.IsInt() || !number.Num().IsInt64() {
+			return nil
+		}
+		limit = number.Num().Int64()
+	}
+	if limit <= 0 || limit > maxDiscoveryTokenLimit {
+		return nil
+	}
+	return &limit
+}
+
+func (model *DiscoveredModel) setDeclaredTokenLimits(context *int64, contextSource, contextKind string, output *int64, outputSource string) {
+	if context == nil && output == nil {
+		return
+	}
+	model.ContextLimit, model.OutputLimit = context, output
+	model.TokenLimitSources = &DiscoveryTokenLimitSources{}
+	if context != nil {
+		model.TokenLimitSources.ContextLimit = contextSource
+		model.TokenLimitSources.ContextLimitKind = contextKind
+	}
+	if output != nil {
+		model.TokenLimitSources.OutputLimit = outputSource
+	}
+}
+
+func declaredDiscoveryGeminiTasks(methods []string) []string {
+	var tasks []string
+	seen := map[string]bool{}
+	for _, method := range methods {
+		var task string
+		switch method {
+		case "embedContent", "batchEmbedContents":
+			task = "embedding"
+		case "bidiGenerateContent":
+			task = "realtime_conversation"
+		default:
+			// generateContent can generate text, images or speech; the
+			// method alone does not identify which task to configure.
+			continue
+		}
+		if !seen[task] {
+			tasks = append(tasks, task)
+			seen[task] = true
+		}
+	}
+	return tasks
 }
 
 func validDiscoveredModel(model DiscoveredModel, key string) bool {
@@ -357,8 +487,11 @@ func validDiscoveredModel(model DiscoveredModel, key string) bool {
 			return false
 		}
 	}
-	for _, value := range []*int64{model.Created, model.InputTokenLimit, model.OutputTokenLimit} {
-		if value != nil && *value < 0 {
+	if model.Created != nil && *model.Created < 0 {
+		return false
+	}
+	for _, value := range []*int64{model.InputTokenLimit, model.OutputTokenLimit, model.ContextLimit, model.OutputLimit} {
+		if value != nil && (*value <= 0 || *value > maxDiscoveryTokenLimit) {
 			return false
 		}
 	}

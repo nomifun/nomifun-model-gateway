@@ -32,6 +32,7 @@ payments and support. NomiFun does not operate gateway instances or sell API acc
 | [OpenAPI](../openapi.yaml) | Machine-readable public API contract |
 | [Partner integration](partners/integration.md) | Operator/client boundary, runtime Desktop connection and credential-free integration links |
 | [Provider onboarding and Desktop handoff](partners/provider-onboarding-desktop-handoff.md) | Local synthetic fixture operation, onboarding evidence and remaining Desktop integration gaps |
+| [Desktop model management alignment](partners/desktop-model-management-alignment.md) | Protocol manifest, advisory catalog metadata, native stream boundaries and current compatibility limits |
 
 Clients integrate with the public protocol, not the console's internal
 `/api/console/v1` session API or the mock's synthetic implementation details.
